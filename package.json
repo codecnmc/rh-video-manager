@@ -19,9 +19,7 @@
     "package:win": "pnpm build && electron-builder --win --dir",
     "package:win:empty": "pnpm build && node scripts/package-win.mjs empty",
     "package:win:data": "pnpm build && node scripts/package-win.mjs current",
-    "package:win:with-test-plugin": "pnpm package:win && node scripts/local-tts/prepare-plugin-delivery.mjs",
-    "test:plugins": "node scripts/plugins/run-unit-tests.mjs",
-    "test:plugins:packaged": "node scripts/plugins/packaged-smoke.mjs",
+    "package:win:release": "pnpm build && node scripts/package-win.mjs release",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json"
   },

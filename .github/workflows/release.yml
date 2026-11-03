@@ -1,0 +1,108 @@
+name: Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag, for example v0.1.0'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Validate requested tag
+        id: requested
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
+            throw 'Only stable vX.Y.Z tags can be released'
+          }
+          "tag=$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ steps.requested.outputs.tag }}
+          persist-credentials: false
+
+      - name: Match package version and check source scope
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.requested.outputs.tag }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -cne "v$version") { throw 'Tag and package.json version differ' }
+          $forbidden = @(git ls-files | Select-String '^(extensions/|scripts/local-tts/|scripts/plugins/|docs/|outputs?/|\.cache/)|\.(sqlite|avwm)$')
+          if ($forbidden.Count) { throw 'Release source contains private data or excluded plugins' }
+          "tag=$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows x64 ZIP and SHA-256
+        run: pnpm package:win:release
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-${{ steps.version.outputs.tag }}
+          path: |
+            release/rh-video-manager-*-win-x64.zip
+            release/rh-video-manager-*-win-x64.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-${{ needs.build.outputs.tag }}
+          path: artifacts
+
+      - name: Create draft Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft > release-state.json 2> release-error.txt; then
+            node -e 'if (!JSON.parse(require("fs").readFileSync("release-state.json", "utf8")).isDraft) throw Error("Refusing to replace a published release")'
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "羊驼AI影视 $RELEASE_TAG" --notes 'Windows x64 ZIP，无需安装。完整解压后运行，不要只复制 EXE。未签名，使用前请核对 SHA-256。发布前请完成运行验收，并核对 FFmpeg 及静态依赖的完整对应源码与许可证分发义务。此草稿不会被软件正式版更新检查发现。'
+          fi
+          gh release upload "$RELEASE_TAG" artifacts/*.zip artifacts/*.sha256 --clobber

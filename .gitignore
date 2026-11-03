@@ -25,3 +25,9 @@ resources/media-engine/
 *.sqlite-shm
 *.avwm
 
+# 本地试验插件与交付工具不随主应用源码发布。
+/extensions/
+/scripts/local-tts/
+/scripts/plugins/
+/tests/kokoro-plugin.test.mts
+

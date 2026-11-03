@@ -100,14 +100,31 @@ pnpm dev
 | `pnpm package:win` | 生成 Windows 解包目录 |
 | `pnpm package:win:empty` | 生成使用独立空白数据目录的 ZIP |
 | `pnpm package:win:data` | 生成使用本机原数据目录的调试 ZIP，不复制数据或 Key |
+| `pnpm package:win:release` | 生成固定数据配置的正式 Windows ZIP 与 SHA-256，无插件、无用户数据 |
 
-回归用例位于 `tests/`，部分需要 SQLite、Electron 或专用脚本；插件测试入口见 `package.json`。单个模块通过不等于完整应用验收。
+回归用例位于 `tests/`，部分需要 SQLite、Electron 或专用脚本。试验插件与其专用交付脚本不随本仓库分发，宿主扩展接口仍保留。单个模块通过不等于完整应用验收。
 
 ### 软件更新
 
 「设置 → 软件更新 → 检查更新」查询本仓库最新的正式 GitHub Release，并与当前版本比较。点击「发布页面」在浏览器下载完整发行包；不会自动下载、安装、覆盖数据或重启软件。
 
 仓库私有、尚无正式 Release 或 GitHub 限流时会提示检查失败，不会误报为已是最新版。私有阶段可在浏览器登录有权限的 GitHub 账号后下载；应用不保存 GitHub Token。发布者应使用 `v主版本.次版本.修订号`（如 `v0.1.1`），同步 `package.json` 版本并上传完整 Windows ZIP；Draft 和 Pre-release 不参与正式版检查。更新前保存编辑内容并备份数据，关闭旧版本后将新版完整解压到新目录，不要只替换 EXE；保持使用同一数据 profile，不同时启动新旧版本。
+
+### 自动构建 Release
+
+仓库内置 [Windows Release](.github/workflows/release.yml) GitHub Actions。推送 `vX.Y.Z` 标签后自动在 Windows x64 环境安装锁定依赖、构建应用、核对必需资源、校验 ZIP 并生成 SHA-256，上传 Actions 产物并创建**草稿 Release**。不使用开发者电脑的数据、Key、插件或模型，也不需要另配发布 Token，使用仓库自带的 `GITHUB_TOKEN`。
+
+发布时在 GitHub 源码的干净克隆中操作，确认当前提交已包含需要发布的代码：
+
+```powershell
+# 先修改 package.json 中的 version 并提交、推送，标签必须与该版本一致。
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+也可在 GitHub 的 `Actions → Windows Release → Run workflow` 中填写已有版本标签重跑。标签必须是稳定版 `vX.Y.Z`，与标签内 `package.json` 版本完全一致。构建失败不会创建新 Release；重跑仅能更新草稿，拒绝覆盖已公开版本的附件。未签名的 ZIP 不代表通过 Windows 签名或运行验收。
+
+产物名为 `rh-video-manager-X.Y.Z-win-x64.zip` 和对应 `.sha256`。维护者从草稿下载并验收，落实 [FFmpeg 分发义务](resources/notices/media-engine.md) 后再手动发布；草稿不进入软件的正式版更新检查。正式包固定使用 `%APPDATA%\AI 视频工作台`，升级不会像空白测试包那样每次创建随机 profile；此前空白测试包的数据需经迁移流程处理。
 
 ## 数据与安全
 
@@ -157,7 +174,6 @@ src/preload/             最小专用桥接
 src/shared/contracts/    跨进程 DTO、校验与事件
 src/renderer/src/        React 界面
 resources/skills/        内置技能与上游许可
-extensions/             扩展资源
 sdk/                    扩展 SDK
 media/screenshots/      公开脱敏截图
 resources/notices/      随发行包提供的第三方说明
