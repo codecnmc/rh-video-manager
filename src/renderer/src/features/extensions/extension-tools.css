@@ -1,0 +1,7 @@
+.extension-tool-dialog { width: min(900px, calc(100vw - 40px)); }
+.extension-tool-controls { display: flex; align-items: end; gap: 10px; margin-bottom: 16px; }
+.extension-tool-controls label { flex: 1; min-width: 0; }
+.extension-tool-controls [data-slot='select-trigger'] { margin-top: 4px; }
+.extension-proposal-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.extension-proposal-columns textarea { display: block; margin-top: 6px; }
+@media (max-width: 640px) { .extension-proposal-columns { grid-template-columns: minmax(0, 1fr); } }

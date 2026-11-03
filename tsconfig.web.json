@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.web.tsbuildinfo",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src/renderer/src/**/*.ts",
+    "src/renderer/src/**/*.tsx",
+    "src/shared/contracts/**/*.ts",
+    "src/shared/clip-color.ts",
+    "src/shared/assembly-timing.ts",
+    "src/shared/assembly-visual.ts",
+    "src/shared/assembly-transitions.ts",
+    "src/shared/assembly-surfaces.ts",
+    "src/shared/assembly-edit.ts",
+    "src/shared/assembly-insert.ts",
+    "src/shared/title-layout.ts"
+  ]
+}

@@ -1,0 +1,25 @@
+.markdown-surface { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; border-block: 1px solid var(--border); }
+.markdown-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.markdown-mode-control.ui-toggle-group { width: auto; flex: 0 0 auto; }
+.markdown-mode-control .ui-toggle-group-item { flex: 0 0 64px; white-space: nowrap; }
+.markdown-pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
+.markdown-pane-heading { flex: 0 0 36px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; background: #f7f9fa; }
+.markdown-source.ui-textarea { flex: 1; height: 100%; min-height: 0; resize: none; border: 0; border-radius: 0; padding: 20px; font-family: Consolas, monospace; font-size: inherit; line-height: 1.75; box-shadow: none; background: #fbfcfd; }
+.markdown-preview { min-width: 0; min-height: 0; padding: 20px; overflow: auto; overflow-wrap: anywhere; line-height: 1.75; font-size: inherit; }
+.markdown-pane > .markdown-preview { flex: 1; }
+.markdown-split .markdown-preview-pane { border-left: 1px solid var(--border); }
+.markdown-preview > :first-child { margin-top: 0; }
+.markdown-preview h1 { font-size: 24px; }
+.markdown-preview h2 { font-size: 20px; }
+.markdown-preview h3 { font-size: 17px; }
+.markdown-preview ul, .markdown-preview ol { padding-left: 24px; list-style: revert; }
+.markdown-preview p, .markdown-preview ul, .markdown-preview ol, .markdown-preview pre, .markdown-preview blockquote, .markdown-preview table { margin: 0 0 14px; }
+.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 { margin: 20px 0 10px; }
+.markdown-preview pre { padding: 12px; background: #f5f7f8; overflow: auto; white-space: pre; border-radius: 4px; }
+.markdown-preview code { font-family: Consolas, monospace; }
+.markdown-preview table { border-collapse: collapse; max-width: 100%; display: block; overflow: auto; }
+.markdown-preview th, .markdown-preview td { border: 1px solid var(--border); padding: 6px 10px; }
+.markdown-preview input[type='checkbox'] { width: 14px; height: 14px; min-height: 0; margin-right: 6px; vertical-align: middle; }
+.markdown-preview blockquote { border-left: 3px solid var(--border); margin-left: 0; padding-left: 16px; color: var(--muted); }
+.markdown-link { text-decoration: underline; }
+@media (max-width: 900px) { .markdown-split { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(180px, 1fr)); overflow: auto; } .markdown-split .markdown-preview-pane { border-left: 0; border-top: 1px solid var(--border); } }

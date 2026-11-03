@@ -1,0 +1,38 @@
+{
+  "project": {
+    "name": "Example Film",
+    "brief": "",
+    "source_catalog": "analysis/shots.jsonl"
+  },
+  "timeline": {
+    "name": "ROUGH_CUT_v001",
+    "fps": 24,
+    "start_timecode": "01:00:00:00",
+    "resolution": "3840x2160",
+    "aspect_ratio": "16:9"
+  },
+  "edits": [
+    {
+      "event": 1,
+      "source": "D:/Footage/A001_C001.mov",
+      "reel": "A001",
+      "source_in": "00:00:02:00",
+      "source_out": "00:00:05:12",
+      "record_in": "01:00:00:00",
+      "record_out": "01:00:03:12",
+      "track": "V1",
+      "audio_tracks": [
+        "A1",
+        "A2"
+      ],
+      "handles_frames": 12,
+      "transition": "cut",
+      "audio_treatment": "linked production audio",
+      "reason": "story_information",
+      "rationale": "Establishes the controlled factory pattern before the first deviation.",
+      "confidence": 0.8,
+      "alternatives": [],
+      "markers": []
+    }
+  ]
+}

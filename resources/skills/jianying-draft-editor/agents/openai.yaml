@@ -1,0 +1,3 @@
+interface:
+  display_name: "剪映草稿剪辑"
+  short_description: "通过工作台 MCP 检查素材，结合授权本地路径与剪辑计划生成可编辑剪映草稿"

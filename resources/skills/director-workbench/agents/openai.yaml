@@ -1,0 +1,4 @@
+interface:
+  display_name: "导演工作台"
+  short_description: "融合分镜剪辑、逐镜后配声音、参考图与RH提示词，可选接入工作台MCP"
+  default_prompt: "使用 $director-workbench，根据我的输入完成分镜与声音衔接设计、参考图、视频提示词或素材复核，只推进本次授权的阶段。"

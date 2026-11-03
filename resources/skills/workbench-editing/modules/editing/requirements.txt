@@ -1,0 +1,5 @@
+numpy>=2.0
+opencv-python>=4.10
+Pillow>=10.4
+jsonschema>=4.23
+PyYAML>=6.0

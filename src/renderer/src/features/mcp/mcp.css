@@ -1,0 +1,13 @@
+.mcp-form fieldset { display: grid; gap: 20px; }
+.mcp-form .mcp-field { display: grid; gap: 8px; min-width: 0; }
+.mcp-form .field-label { margin: 0; }
+.mcp-directory-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.mcp-directory-row > input { min-width: 0; margin: 0; }
+.mcp-directory-row > button { min-height: 38px; white-space: nowrap; }
+.mcp-form fieldset .checkbox-label { display: flex; align-items: flex-start; margin: 0; white-space: normal; line-height: 20px; }
+.mcp-form .checkbox-label > [role="checkbox"] { flex-shrink: 0; margin-top: 2px; }
+.mcp-form .dialog-actions { margin-top: 4px; }
+@media (max-width: 600px) {
+  .mcp-directory-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .mcp-directory-row > button { justify-self: start; }
+}

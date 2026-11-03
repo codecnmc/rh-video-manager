@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "publisher": "workbench",
+  "name": "kokoro-test",
+  "displayName": "Kokoro 本地语音（接入测试）",
+  "description": "本地 CPU 中文预置音色测试。生成 WAV 仅用于验证插件接入，不支持克隆、情绪指令或时间轴拟合。",
+  "version": "0.2.1",
+  "engines": { "videoWorkbench": "^1.0.0" },
+  "main": "./extension.cjs",
+  "activationEvents": ["onCommand", "onSpeech"],
+  "permissions": ["models.local"],
+  "contributes": {
+    "commands": [
+      { "id": "workbench.kokoro-test.generate", "title": "生成中文测试 WAV" },
+      { "id": "workbench.kokoro-test.open-output", "title": "打开测试输出目录" }
+    ],
+    "speechProviders": [{
+      "id": "workbench.kokoro-test.cpu",
+      "name": "Kokoro INT8 CPU（测试）",
+      "runtime": "local",
+      "maxTextLength": 120,
+      "capabilities": { "presetVoices": true, "voiceCloning": false, "emotion": false }
+    }],
+    "configuration": [
+      { "key": "runtime-directory", "title": "独立运行环境目录", "type": "string", "required": true },
+      { "key": "test-text", "title": "测试文字（留空使用默认短句，最多 120 字）", "type": "string" },
+      { "key": "voice-id", "title": "中文音色 ID（45–52，默认 45）", "type": "number" },
+      { "key": "speed", "title": "语速（0.5–2，默认 1）", "type": "number" }
+    ]
+  }
+}
