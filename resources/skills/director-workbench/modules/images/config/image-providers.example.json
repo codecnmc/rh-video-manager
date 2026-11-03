@@ -1,0 +1,14 @@
+{
+  "modelFamily": "user-confirmed-model-version",
+  "globalConcurrency": 2,
+  "providers": [
+    {
+      "id": "example-account",
+      "baseUrl": "https://images.example.invalid",
+      "accountGroup": "example-account",
+      "maxConcurrency": 2,
+      "model": "user-selected-model",
+      "apiKeyEnv": "IMAGE_API_KEY"
+    }
+  ]
+}

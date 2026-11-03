@@ -1,0 +1,2 @@
+﻿event,source,reel,source_in,source_out,record_in,record_out,track,reason,rationale,confidence,alternatives
+1,D:/Footage/A001_C001.mov,A001,00:00:02:00,00:00:05:12,01:00:00:00,01:00:03:12,V1,story_information,Establishes the controlled factory pattern before the first deviation.,0.8,

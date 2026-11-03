@@ -1,0 +1,49 @@
+appId: local.ai-video-workbench
+productName: 羊驼AI影视
+asar: true
+npmRebuild: false
+electronDist: node_modules/electron/dist
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+  - LICENSE
+  - resources/alpaca.png
+  - resources/alpaca.ico
+  - resources/TWEMOJI-LICENSE-GRAPHICS
+  - resources/NOTICE.md
+asarUnpack:
+  - out/main/**
+beforePack: scripts/media-engine/before-pack.cjs
+extraResources:
+  - from: LICENSE
+    to: LICENSE
+  - from: resources/notices
+    to: notices
+    filter:
+      - '**/*'
+  - from: resources/alpaca.ico
+    to: alpaca.ico
+  - from: resources/alpaca.png
+    to: alpaca.png
+  - from: resources/fonts
+    to: fonts
+    filter:
+      - '**/*'
+  - from: resources/skills
+    to: skills
+    filter:
+      - '**/*'
+      - '!director-workbench/**'
+  - from: resources/media-engine/win32-x64
+    to: media-engine/win32-x64
+    filter:
+      - '**/*'
+win:
+  icon: resources/alpaca.ico
+  target:
+    - target: dir
+      arch:
+        - x64
+  signAndEditExecutable: true

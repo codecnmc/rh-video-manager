@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo",
+    "lib": ["ES2022"],
+    "types": ["node", "electron-vite/node"]
+  },
+  "include": [
+    "electron.vite.config.ts",
+    "src/main/**/*.ts",
+    "src/main/providers/runninghub/h3-comfyui-template.json",
+    "src/preload/**/*.ts",
+    "src/shared/contracts/**/*.ts",
+    "src/shared/media-naming.ts",
+    "src/shared/clip-color.ts",
+    "src/shared/assembly-timing.ts",
+    "src/shared/assembly-visual.ts",
+    "src/shared/assembly-transitions.ts",
+    "src/shared/assembly-surfaces.ts",
+    "src/shared/assembly-edit.ts",
+    "src/shared/assembly-insert.ts",
+    "src/shared/title-layout.ts"
+  ]
+}

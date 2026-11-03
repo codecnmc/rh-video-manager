@@ -1,0 +1,20 @@
+{
+  "outputDir": "D:/your-project/outputs/reference-images",
+  "jobs": [
+    {
+      "id": "shot-01-opening",
+      "providerId": "site-a-account-1",
+      "command": "generate",
+      "prompt": "Replace with the approved complete shot reference prompt.",
+      "size": "1280x720"
+    },
+    {
+      "id": "shot-02-reverse",
+      "providerId": "site-b-account-1",
+      "command": "edit",
+      "prompt": "Replace with the approved complete reverse-angle prompt and reference duties.",
+      "images": ["D:/your-project/references/approved-character.png"],
+      "size": "1280x720"
+    }
+  ]
+}

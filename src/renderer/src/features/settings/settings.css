@@ -1,0 +1,41 @@
+.settings-page { overflow: auto; container-type: inline-size; }
+.settings-content { width: 100%; min-width: 0; }
+.settings-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+.settings-column { min-width: 0; }
+.settings-column + .settings-column { padding-left: 32px; border-left: 1px solid var(--border); }
+.settings-page .management-toolbar { padding-bottom: 8px; }
+.settings-page fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.settings-page .settings-section { padding: 20px 0; border-bottom: 1px solid var(--border); }
+.settings-column > .settings-section:last-child { border-bottom: 0; }
+.settings-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; min-height: 36px; flex-wrap: wrap; }
+.settings-section-heading h3 { margin: 0; }
+.settings-section h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+.settings-section h4 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+.settings-row + h4 { margin-top: 20px; }
+.settings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 20px; min-height: 36px; margin-bottom: 8px; }
+.settings-row > label { min-width: 0; overflow-wrap: anywhere; }
+.settings-row > input { width: 110px; }
+.settings-row > input[type='password'] { width: 240px; max-width: 100%; }
+.settings-section dl { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 10px 20px; margin: 12px 0 16px; }
+.settings-section dd { margin: 0; overflow-wrap: anywhere; }
+.settings-section .button-row { flex-wrap: wrap; }
+.settings-section .button-row + .button-row { margin-top: 12px; }
+.settings-form-actions { justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.settings-storage-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 12px 0; }
+.settings-storage-row + .settings-storage-row { border-top: 1px solid var(--border); }
+.settings-storage-info { min-width: 0; flex: 1 0 100%; }
+.settings-storage-row h4 { margin: 0; }
+.settings-storage-info p { margin: 6px 0; overflow-wrap: anywhere; line-height: 1.5; }
+.settings-storage-info .muted { font-size: 12px; }
+.settings-storage-row > .button-row, .settings-storage-row > button { flex-shrink: 0; }
+@container (max-width: 1000px) {
+  .settings-columns { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .settings-column + .settings-column { padding-left: 0; border-left: 0; border-top: 1px solid var(--border); }
+}
+@container (max-width: 560px) {
+  .settings-row { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 16px; }
+  .settings-row > input[type='password'] { width: 100%; }
+  .settings-form-actions { justify-content: flex-start; }
+  .settings-section dl { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .settings-section dd + dt { margin-top: 8px; }
+}

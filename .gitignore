@@ -1,0 +1,33 @@
+node_modules/
+out/
+dist/
+release/
+.codegraph/
+.cache/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+docs/workflows/工作流.json
+resources/media-engine/
+
+# 本地设计、制作记录与历史产物；公开说明和截图放在根 README、GUIDE 与 media/。
+/docs/
+/outputs/
+/output/
+/design-qa.md
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.avwm
+
+# 本地试验插件与交付工具不随主应用源码发布。
+/extensions/
+/scripts/local-tts/
+/scripts/plugins/
+/tests/kokoro-plugin.test.mts
+

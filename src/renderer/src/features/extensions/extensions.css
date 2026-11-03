@@ -1,0 +1,42 @@
+.extension-filters { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 12px; margin-bottom: 16px; }
+.extension-layout { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); min-height: 360px; }
+.extension-list { min-width: 0; border-right: 1px solid var(--border); padding-right: 16px; }
+.extension-item { display: flex; align-items: start; gap: 12px; width: 100%; padding: 14px 10px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: white; text-align: left; }
+.extension-item > svg { width: 20px; margin-top: 4px; color: var(--muted); }
+.extension-item > span { min-width: 0; overflow-wrap: anywhere; }
+.extension-item strong, .extension-item small { display: block; }
+.extension-item small { color: var(--muted); margin-top: 4px; font-size: 14px; }
+.extension-item.selected { background: var(--primary-soft); }
+.extension-item:hover:not(:disabled) { background: #eef3f4; }
+.extension-detail { min-width: 0; padding-left: 24px; overflow-wrap: anywhere; }
+.extension-detail > header { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.extension-detail h2 { font-size: 16px; }
+.extension-metadata { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 8px 14px; margin: 20px 0; font-size: 14px; }
+.extension-metadata dt { color: var(--muted); }
+.extension-metadata dd { margin: 0; }
+.extension-detail-section, .extension-settings { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 20px; }
+.extension-detail-section h3 { margin-bottom: 12px; }
+.extension-provider { padding: 12px 0; }
+.extension-provider + .extension-provider { border-top: 1px solid var(--border); }
+.extension-provider-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.extension-provider-heading > div { min-width: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.extension-provider-heading .muted, .extension-provider > .muted { font-size: 14px; }
+.extension-voices { max-height: 260px; overflow: auto; margin-top: 12px; }
+.extension-voices table { width: 100%; min-width: 0; table-layout: fixed; }
+.extension-voices th, .extension-voices td { padding: 8px; text-align: left; font-size: 14px; white-space: normal; overflow-wrap: anywhere; }
+.extension-settings { max-width: 560px; }
+.extension-settings fieldset { border: 0; padding: 0; min-width: 0; margin: 0; }
+.extension-settings .button-row { margin-top: 18px; }
+.extension-settings .field-error { margin-top: 12px; }
+.extension-secret { display: flex; align-items: center; gap: 8px; }
+.extension-secret input { min-width: 0; }
+.extension-management .button:not(.button-size-icon) { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 1050px) {
+  .extension-layout { grid-template-columns: minmax(0, 1fr); }
+  .extension-list { border-right: 0; border-bottom: 1px solid var(--border); padding-right: 0; margin-bottom: 20px; max-height: 280px; overflow-y: auto; }
+  .extension-detail { padding-left: 0; }
+}
+@media (max-width: 650px) {
+  .extension-filters { grid-template-columns: minmax(0, 1fr); }
+  .extension-detail > header { gap: 10px; }
+}

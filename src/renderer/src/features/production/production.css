@@ -1,0 +1,21 @@
+.dialogue-production { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.dialogue-toolbar { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.dialogue-toolbar > .muted { margin-left: auto; }
+.dialogue-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 16px; }
+.dialogue-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.dialogue-line { padding: 12px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.dialogue-line label { display: block; font-size: 14px; margin-bottom: 10px; }
+.dialogue-line-heading, .dialogue-line-actions, .dialogue-take-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.dialogue-line-heading { margin-bottom: 8px; }
+.dialogue-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dialogue-voice-row { display: flex; align-items: end; gap: 6px; margin-bottom: 10px; }
+.dialogue-voice-row label { flex: 1; min-width: 0; margin: 0; }
+.dialogue-voice-row .button { flex-shrink: 0; }
+.dialogue-line input, .dialogue-line [data-slot='select-trigger'], .dialogue-line textarea { margin-top: 4px; min-width: 0; }
+.dialogue-history { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 16px; }
+.dialogue-take { padding: 14px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.dialogue-take p { margin: 6px 0; white-space: pre-wrap; }
+.dialogue-take-heading span, .dialogue-take > .muted { font-size: 14px; }
+.dialogue-take audio { width: 100%; height: 36px; display: block; margin: 10px 0; }
+.dialogue-take .dialogue-line-actions { justify-content: flex-end; margin-top: 8px; }
+.dialogue-empty { padding: 24px 16px; color: var(--muted); }

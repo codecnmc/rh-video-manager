@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cinematic Edit Plan",
+  "type": "object",
+  "required": [
+    "project",
+    "timeline",
+    "edits"
+  ],
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "brief": {
+          "type": "string"
+        },
+        "source_catalog": {
+          "type": "string"
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "required": [
+        "name",
+        "fps",
+        "start_timecode"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "start_timecode": {
+          "type": "string"
+        },
+        "resolution": {
+          "type": "string"
+        },
+        "aspect_ratio": {
+          "type": "string"
+        }
+      }
+    },
+    "edits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "event",
+          "source",
+          "source_in",
+          "source_out",
+          "record_in",
+          "record_out",
+          "track",
+          "reason"
+        ],
+        "properties": {
+          "event": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source": {
+            "type": "string"
+          },
+          "reel": {
+            "type": "string"
+          },
+          "source_in": {
+            "type": "string"
+          },
+          "source_out": {
+            "type": "string"
+          },
+          "record_in": {
+            "type": "string"
+          },
+          "record_out": {
+            "type": "string"
+          },
+          "track": {
+            "type": "string"
+          },
+          "audio_tracks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "handles_frames": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "transition": {
+            "type": "string"
+          },
+          "audio_treatment": {
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "story_information",
+              "performance_emotion",
+              "action_match",
+              "eyeline_match",
+              "spatial_orientation",
+              "rhythm_tension",
+              "sound_bridge",
+              "intentional_rupture"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "markers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

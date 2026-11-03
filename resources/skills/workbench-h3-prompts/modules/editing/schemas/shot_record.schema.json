@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cinematic Shot Record",
+  "type": "object",
+  "required": [
+    "shot_id",
+    "source",
+    "time",
+    "technical",
+    "evidence",
+    "confidence"
+  ],
+  "properties": {
+    "shot_id": {
+      "type": "string"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "path",
+        "fps"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "reel": {
+          "type": "string"
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "start_timecode": {
+          "type": "string"
+        },
+        "vfr": {
+          "type": "boolean"
+        }
+      }
+    },
+    "time": {
+      "type": "object",
+      "required": [
+        "start_seconds",
+        "end_seconds",
+        "start_frame",
+        "end_frame"
+      ],
+      "properties": {
+        "start_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "start_frame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_frame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_in_tc": {
+          "type": "string"
+        },
+        "source_out_tc": {
+          "type": "string"
+        }
+      }
+    },
+    "technical": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "mean_brightness": {
+          "type": "number"
+        },
+        "mean_sharpness": {
+          "type": "number"
+        },
+        "motion_score": {
+          "type": "number"
+        },
+        "audio_rms": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "properties": {
+        "shot_size": {
+          "type": "string"
+        },
+        "camera_motion": {
+          "type": "string"
+        },
+        "subjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "eye_line": {
+          "type": "string"
+        },
+        "screen_direction": {
+          "type": "string"
+        },
+        "emotion": {
+          "type": "string"
+        },
+        "dialogue": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "performance_beats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "narrative_function": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "usable_ranges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "start_seconds",
+          "end_seconds"
+        ],
+        "properties": {
+          "start_seconds": {
+            "type": "number"
+          },
+          "end_seconds": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "keyframes"
+      ],
+      "properties": {
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "seconds"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "seconds": {
+                "type": "number"
+              },
+              "frame": {
+                "type": "integer"
+              },
+              "note": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "contact_sheet": {
+          "type": "string"
+        }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "boundary": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "technical": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "semantic": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

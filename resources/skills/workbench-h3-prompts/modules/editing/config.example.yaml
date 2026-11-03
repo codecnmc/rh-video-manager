@@ -1,0 +1,17 @@
+analysis:
+  base_sample_fps: 4
+  adaptive_sample_fps: 24
+  scene_threshold: 0.48
+  min_shot_seconds: 0.45
+  boundary_refine_window_seconds: 0.6
+  jpeg_quality: 90
+  contact_sheet_columns: 4
+editorial:
+  default_handles_frames: 12
+  require_cut_rationale: true
+  duplicate_nle_timeline: true
+  preserve_linked_audio: true
+cloud_video_understanding:
+  enabled: false
+  provider: twelvelabs
+  upload_requires_explicit_user_approval: true
