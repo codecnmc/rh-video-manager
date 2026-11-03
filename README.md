@@ -6,7 +6,7 @@
 
 [GitHub 仓库](https://github.com/codecnmc/rh-video-manager) · [下载发行版](https://github.com/codecnmc/rh-video-manager/releases) · [操作指南](GUIDE.md) · [MIT 许可证](LICENSE)
 
-仓库目前为私有，仅获授权的 GitHub 用户可访问；公开后以上链接即可供所有人使用。软件本身免费开源，RunningHub 和生图站的生成费用由对应服务收取。
+软件本身免费开源，RunningHub 和生图站的生成费用由对应服务收取。
 
 ## 界面预览
 
