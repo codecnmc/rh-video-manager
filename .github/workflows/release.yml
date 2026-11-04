@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing version tag, for example v0.1.0'
+        description: 'Existing version tag, for example v0.1.1'
         required: true
         type: string
 
@@ -95,7 +95,7 @@ jobs:
           name: windows-x64-${{ needs.build.outputs.tag }}
           path: artifacts
 
-      - name: Create draft Release
+      - name: Upload and publish Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -103,9 +103,16 @@ jobs:
           RELEASE_TAG: ${{ needs.build.outputs.tag }}
         run: |
           set -euo pipefail
+          # 对应版本的发行包与校验文件均验证成功后才允许公开发布。
+          VERSION="${RELEASE_TAG#v}"
+          ZIP="rh-video-manager-${VERSION}-win-x64.zip"
+          test -s "artifacts/$ZIP"
+          test -s "artifacts/$ZIP.sha256"
+          (cd artifacts && sha256sum --check "$ZIP.sha256")
           if gh release view "$RELEASE_TAG" --json isDraft > release-state.json 2> release-error.txt; then
             node -e 'if (!JSON.parse(require("fs").readFileSync("release-state.json", "utf8")).isDraft) throw Error("Refusing to replace a published release")'
           else
-            gh release create "$RELEASE_TAG" --verify-tag --draft --title "羊驼AI影视 $RELEASE_TAG" --notes 'Windows x64 ZIP，无需安装。完整解压后运行，不要只复制 EXE。未签名，使用前请核对 SHA-256。发布前请完成运行验收，并核对 FFmpeg 及静态依赖的完整对应源码与许可证分发义务。此草稿不会被软件正式版更新检查发现。'
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "羊驼AI影视 $RELEASE_TAG" --notes 'Windows x64 ZIP，无需安装。完整解压后运行，不要只复制 EXE。未签名，使用前请核对 SHA-256。内置 FFmpeg 及静态依赖的许可说明见 resources/notices/media-engine.md；分发者须落实完整对应源码等许可证义务。'
           fi
-          gh release upload "$RELEASE_TAG" artifacts/*.zip artifacts/*.sha256 --clobber
+          gh release upload "$RELEASE_TAG" "artifacts/$ZIP" "artifacts/$ZIP.sha256" --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest --notes 'Windows x64 ZIP，无需安装。完整解压后运行，不要只复制 EXE。未签名，使用前请核对 SHA-256。内置 FFmpeg 及静态依赖的许可说明见 resources/notices/media-engine.md；分发者须落实完整对应源码等许可证义务。'
