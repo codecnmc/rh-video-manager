@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import Sortable from 'sortablejs'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faArrowUp, faArrowDown, faCopy, faTrash, faCheck } from '@fortawesome/free-solid-svg-icons'
+import { faArrowUp, faArrowDown, faCopy, faTrash, faCheck, faListCheck } from '@fortawesome/free-solid-svg-icons'
 import type { VideoDraft } from '@contracts/video'
 import { Button } from '@/components/ui/button'
 import { InteractionHint } from '@/components/ui/interaction-hint'
@@ -17,6 +17,7 @@ interface VideoDraftListProps {
   emptyMessage: string
   onSelect: (id: string) => void
   onToggleSelection: (id: string) => void
+  onSelectAll: () => void
   onCopy: (id: string) => void
   onRemove: (draft: VideoDraft) => void
   onReorder: (ids: string[]) => void
@@ -87,8 +88,10 @@ export function VideoDraftList(props: VideoDraftListProps) {
         </Button>
       </div></ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem disabled={!props.editable} onSelect={() => props.onCopy(draft.id)}><FontAwesomeIcon icon={faCopy} />复制草稿</ContextMenuItem>
         <ContextMenuItem disabled={props.busy} onSelect={() => props.onToggleSelection(draft.id)}><FontAwesomeIcon icon={faCheck} />{props.selectedIds.includes(draft.id) ? '取消选择' : '选择草稿'}</ContextMenuItem>
+        <ContextMenuItem disabled={props.busy} onSelect={props.onSelectAll}><FontAwesomeIcon icon={faListCheck} />全选草稿</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem disabled={!props.editable} onSelect={() => props.onCopy(draft.id)}><FontAwesomeIcon icon={faCopy} />复制草稿</ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem disabled={!props.sortable || index === 0} onSelect={() => move(index, -1)}><FontAwesomeIcon icon={faArrowUp} />上移</ContextMenuItem>
         <ContextMenuItem disabled={!props.sortable || index === props.drafts.length - 1} onSelect={() => move(index, 1)}><FontAwesomeIcon icon={faArrowDown} />下移</ContextMenuItem>

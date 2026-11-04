@@ -495,6 +495,12 @@ td small { display: block; color: #b18b4d; font-size: 14px; }
 .video-draft-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .draft-group-controls { padding: 0 12px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .draft-group-controls > label, .generation-records > label { font-size: 13px; color: var(--muted); }
+.draft-selection-controls { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 10px; min-width: 0; }
+.draft-selection-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-height: 32px; }
+.draft-select-all { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+.draft-select-all > input { margin: 0; width: 14px; height: 14px; flex-shrink: 0; }
+.draft-selection-count { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.draft-selection-toolbar > .button { margin-left: auto; }
 .draft-group-toolbar { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .group-manager-list { max-height: 360px; overflow-y: auto; }
 .group-manager-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }

@@ -112,6 +112,8 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
   const groups = project?.videoGroups ?? []
   const groupedDrafts = (project?.videoDrafts ?? []).filter((item) => groupFilter === 'all' || (groupFilter === 'ungrouped' ? !item.groupId : item.groupId === groupFilter))
   const visibleDrafts = groupedDrafts.filter((item) => `${item.title}\n${item.description}`.toLowerCase().includes(search.trim().toLowerCase()))
+  const selectedVisibleCount = visibleDrafts.filter((item) => selectedDrafts.includes(item.id)).length
+  const allVisibleSelected = visibleDrafts.length > 0 && selectedVisibleCount === visibleDrafts.length
   const savedDraft = resolveSavedDraft(project?.videoDrafts ?? [], ui)
   const draft = savedDraft ?? (project ? scratch[project.id] : undefined)
   const selectedBoardId = useImageGenerationUi((state) => state.boardByProject[project?.id ?? 'public'] ?? null)
@@ -393,14 +395,23 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
                         <Button variant="ghost" size="icon" title="管理分组" aria-label="管理分组" disabled={busy || dirty} onClick={() => setManagingGroups(true)}><FontAwesomeIcon icon={faGear} /></Button>
                       </div></div>
                       <div className="shot-search"><Input aria-label="搜索草稿标题或简介" placeholder="搜索标题或简介" value={search} onChange={(event) => { setSearch(event.target.value); setSelectedDrafts([]) }} /></div>
-                      {selectedDrafts.length > 0 && <div className="draft-group-controls"><span>已选 {selectedDrafts.length} 项</span><SelectField aria-label="批量移动到分集分组" value="" disabled={busy || dirty} onChange={(event) => { if (event.target.value) void moveDrafts(event.target.value) }}>
-                        <SelectOption value="">移动到…</SelectOption><SelectOption value="ungrouped">未分组</SelectOption>{groups.map((group) => <SelectOption key={group.id} value={group.id}>{group.name}</SelectOption>)}
-                      </SelectField><Button variant="ghost" onClick={() => setSelectedDrafts([])}>取消选择</Button></div>}
+                      {selectedDrafts.length > 0 && <div className="draft-selection-controls">
+                        <div className="draft-selection-toolbar">
+                          <label className="draft-select-all"><input type="checkbox" checked={allVisibleSelected} ref={(input) => { if (input) input.indeterminate = selectedVisibleCount > 0 && !allVisibleSelected }} disabled={busy || !visibleDrafts.length}
+                            onChange={(event) => setSelectedDrafts(event.target.checked ? visibleDrafts.map((item) => item.id) : [])} />全选</label>
+                          <span className="draft-selection-count" role="status">已选 {selectedDrafts.length} 项</span>
+                          <Button variant="ghost" size="small" disabled={busy} onClick={() => setSelectedDrafts([])}>取消选择</Button>
+                        </div>
+                        <SelectField aria-label="批量移动到分集分组" value="" disabled={busy || dirty} onChange={(event) => { if (event.target.value) void moveDrafts(event.target.value) }}>
+                          <SelectOption value="">移动到分组…</SelectOption><SelectOption value="ungrouped">未分组</SelectOption>{groups.map((group) => <SelectOption key={group.id} value={group.id}>{group.name}</SelectOption>)}
+                        </SelectField>
+                      </div>}
                       <VideoDraftList key={project.id} drafts={visibleDrafts} activeId={savedDraft?.id} selectedIds={selectedDrafts} busy={busy}
                         editable={!busy && !dirty && !workspace.hasExternalChanges} sortable={!busy && !dirty && !workspace.hasExternalChanges && !search.trim()}
                         emptyMessage={search.trim() ? '没有匹配的草稿' : '当前分类暂无已保存草稿'}
                         onSelect={(id) => { void navigate(() => { ui.selectDraft(id); setActiveTask(null) }) }}
                         onToggleSelection={(id) => setSelectedDrafts((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])}
+                        onSelectAll={() => { if (!busy) setSelectedDrafts(visibleDrafts.map((item) => item.id)) }}
                         onCopy={(id) => { void copyDraft(id) }} onRemove={(item) => { void removeEntity('video', item.id, item.title) }} onReorder={(ids) => { void reorderDrafts(ids) }} />
                     </section>
                     {draft && <><VideoInspector key={`${draft.id}-${editorVersion}`} draft={draft} projectId={project.id} saved={Boolean(savedDraft)} saving={busy} externalChanges={workspace.hasExternalChanges} onSave={saveVideo} onDirty={onDirty} onNotice={setNotice} onSubmitted={setActiveTask} initialTab="video" />
