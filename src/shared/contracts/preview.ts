@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { taskConsumptionSchema, type TaskConsumption } from './consumption'
 
 export const connectPreviewSchema = z.object({
   taskId: z.string().regex(/^\d{8,30}$/, '请输入 RunningHub 任务 ID'),
@@ -57,6 +58,7 @@ export interface PreviewSnapshot {
   localReservationReleasedAt?: string
   manualCancellationConfirmedAt?: string
   executionSeconds?: number
+  consumption?: TaskConsumption
   requestedDuration?: number
   continuitySourceJobId?: string
   resultVideos?: PreviewMedia[]
@@ -85,6 +87,7 @@ export const previewSnapshotSchema = z.object({
   remoteStatus: z.enum(['unknown', 'queued', 'running', 'success', 'failed', 'cancelled']), stage: z.string().max(1000),
   submittedAt: z.string().datetime().optional(), runningObservedAt: z.string().datetime().optional(),
   completedAt: z.string().datetime().optional(), executionSeconds: z.number().finite().nonnegative().optional(),
+  consumption: taskConsumptionSchema.optional(),
   cancelRequestedAt: z.string().datetime().optional(),
   localReservationReleasedAt: z.string().datetime().optional(),
   manualCancellationConfirmedAt: z.string().datetime().optional(),

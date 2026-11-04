@@ -1,6 +1,7 @@
 import type { VideoDraft } from '../../../../shared/contracts/video'
 import type { DraftReference, ReferenceKind } from '../../../../shared/contracts/references'
 import type { PreviewSnapshot } from '../../../../shared/contracts/preview'
+import type { TaskConsumption } from '../../../../shared/contracts/consumption'
 
 export class GenerationRejectedError extends Error {}
 
@@ -42,6 +43,7 @@ export interface GenerationPlan {
 }
 
 export interface GenerationGateway {
+  queryConsumption?(taskId: string, credential: string): Promise<TaskConsumption>
   inspectPreview(workflowId: string, credential: string): Promise<string>
   prepare(workflowId: string, credential: string, draft: VideoDraft): Promise<GenerationPlan>
 }

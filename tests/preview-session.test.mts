@@ -99,9 +99,9 @@ test('V2 确认终态后按原节点快照接收 UUID 地址，并记录平台�
     return new Response(JSON.stringify(String(url).endsWith('/query')
       ? { taskId: state.taskId, status: 'SUCCESS', results: [] }
       : { code: 0, data: [
-        { nodeId: 'low', fileUrl: 'https://rh-images.xiaoyaoyou.com/uuid-low.mp4', fileType: 'mp4', taskCostTime: '83.5' },
-        { nodeId: 'high', fileUrl: 'https://rh-images.xiaoyaoyou.com/uuid-high.mp4', fileType: 'mp4', taskCostTime: '83.5' },
-        { nodeId: 'unknown', fileUrl: 'https://rh-images.xiaoyaoyou.com/not-final.mp4', fileType: 'mp4', taskCostTime: '83.5' }
+        { nodeId: 'low', fileUrl: 'https://rh-images.xiaoyaoyou.com/uuid-low.mp4', fileType: 'mp4', taskCostTime: '83.5', consumeCoins: '17' },
+        { nodeId: 'high', fileUrl: 'https://rh-images.xiaoyaoyou.com/uuid-high.mp4', fileType: 'mp4', taskCostTime: '83.5', consumeCoins: '17' },
+        { nodeId: 'unknown', fileUrl: 'https://rh-images.xiaoyaoyou.com/not-final.mp4', fileType: 'mp4', taskCostTime: '83.5', consumeCoins: '17' }
       ] }))
   }
   let session: RunningHubPreviewSession | undefined
@@ -114,6 +114,7 @@ test('V2 确认终态后按原节点快照接收 UUID 地址，并记录平台�
     const result = session!.snapshot()
     assert.equal(result.remoteStatus, 'success')
     assert.equal(result.executionSeconds, 83.5)
+    assert.equal(result.consumption?.coins, '17')
     assert.ok(result.completedAt)
     assert.equal(result.runningObservedAt, undefined)
     assert.equal(result.draft?.source, 'https://rh-images.xiaoyaoyou.com/uuid-low.mp4')

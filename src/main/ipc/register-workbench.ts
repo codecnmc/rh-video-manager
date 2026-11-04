@@ -10,6 +10,7 @@ import type { Result } from '../../shared/contracts/desktop'
 import type { WorkspaceService } from '../application/workspace-service'
 import type { PreviewService, GenerationService } from '../modules/jobs'
 import { scheduleGenerationSchema, submitGenerationSchema } from '../../shared/contracts/generation'
+import { consumptionFilterSchema } from '../../shared/contracts/consumption'
 import { downloadPreview, exportManagedVideo } from '../infrastructure/files/download-preview'
 import { generatedVideoName } from '../../shared/media-naming'
 import { entityIdSchema, saveAccountSchema } from '../../shared/contracts/accounts'
@@ -197,6 +198,8 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
     return !window.isDestroyed() && window.isMaximized()
   })
   handle('generation:submit', async (input) => generation.submit(submitGenerationSchema.parse(input)))
+  handle('generation:consumption-ledger', async (input) => generation.consumptionLedger(consumptionFilterSchema.parse(input)))
+  handle('generation:refresh-consumption', async (input) => generation.refreshConsumption(previewActionSchema.parse(input).id))
   handle('generation:retry-final-archive', async (input, window) => {
     const { id } = previewActionSchema.parse(input)
     const task = generation.list().find((item) => item.id === id)

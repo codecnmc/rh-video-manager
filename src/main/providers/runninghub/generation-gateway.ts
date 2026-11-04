@@ -7,6 +7,7 @@ import { GenerationRejectedError } from '../../modules/jobs'
 import type { VideoDraft } from '../../../shared/contracts/video'
 import type { ReferenceKind } from '../../../shared/contracts/references'
 import { inspectWorkflowPreview } from './workflow-preview'
+import { parseTaskConsumption } from './task-consumption'
 
 const nodeSchema = z.object({ class_type: z.string().max(200), inputs: z.record(z.string(), z.unknown()) }).passthrough()
 const graphSchema = z.record(z.string().min(1).max(100), nodeSchema).refine((graph) => Object.keys(graph).length <= 5000)
@@ -105,6 +106,16 @@ export function prepareH3Graph(response: unknown, draft: VideoDraft): { graph: G
 }
 
 export class RunningHubGenerationGateway implements GenerationGateway {
+  async queryConsumption(taskId: string, credential: string) {
+    try {
+      z.string().regex(/^\d{8,30}$/).parse(taskId)
+      const response = envelopeSchema.parse(await request('/task/openapi/outputs', credential,
+        JSON.stringify({ apiKey: credential, taskId }), true))
+      if (response.code !== 0) throw new Error('费用尚不可用')
+      return parseTaskConsumption(response.data)
+    } catch { throw new Error('费用查询失败，请检查原账号权限或平台结果有效期；兼容接口可能已停用，未重新生成') }
+  }
+
   async inspectPreview(workflowId: string, credential: string): Promise<string> {
     try {
       return JSON.stringify(inspectWorkflowPreview(await request('/api/openapi/getJsonApiFormat', credential,

@@ -2,8 +2,10 @@ import { z } from 'zod'
 import type { TaskDiagnostic } from '../../../shared/contracts/task-diagnostics'
 import type { PreviewEvent, PreviewKind, PreviewMedia, PreviewSnapshot } from '../../../shared/contracts/preview'
 import type { PreviewSession, PreviewSessionOptions } from '../../modules/jobs'
+import { mergeTaskConsumption } from '../../modules/jobs'
 import { allowedMediaUrl, allowedSocketUrl, parseOutput, parseSampling } from './preview-protocol'
 import { classifyWorkflowVideo, inspectWorkflowPreview, restoreWorkflowPreviewDefinition, type WorkflowPreviewDefinition } from './workflow-preview'
+import { parseTaskConsumption } from './task-consumption'
 
 const eventSchema = z.object({ type: z.string(), data: z.record(z.string(), z.unknown()) })
 const querySchema = z.object({
@@ -199,11 +201,14 @@ export class RunningHubPreviewSession implements PreviewSession {
           this.update({ resultVideos: unique.slice(0, 100) })
         }
         this.update({ connection: 'completed', stage: remoteStatus === 'success' ? '远端任务已完成' : '远端任务失败', notice: '' })
-        // 旧接口仅补充节点身份和平台耗时；其失败不能推翻 V2 已确认的终态。
+        // 旧接口补充费用、节点身份和平台耗时；其失败不能推翻 V2 已确认的终态。
         try {
           const legacy = legacySchema.parse(await this.request('/task/openapi/outputs', { apiKey: this.credential, taskId: this.state.taskId }))
           if (this.stopped) return
           const outputs = outputResultsSchema.safeParse(legacy.data)
+          if (remoteStatus === 'success' && legacy.code === 0 && Array.isArray(legacy.data)) {
+            this.update({ consumption: mergeTaskConsumption(this.state.consumption, parseTaskConsumption(legacy.data)) })
+          }
           this.log({ event: 'request', endpoint: 'outputs', platformCode: legacy.code, count: outputs.success ? outputs.data.length : 0 })
           if (legacy.code === 0 && outputs.success) {
             const times = new Set(outputs.data.flatMap((output) => output.taskCostTime && /^\d+(?:\.\d+)?$/.test(output.taskCostTime)

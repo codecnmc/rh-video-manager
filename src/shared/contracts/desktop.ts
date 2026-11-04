@@ -1,5 +1,6 @@
 import type { PreviewEvent, PreviewKind, PreviewSnapshot, PreviewNotificationTarget } from './preview'
 import type { ScheduleGeneration, SubmitGeneration } from './generation'
+import type { ConsumptionFilter, ConsumptionLedger } from './consumption'
 import type { CopyVideoDraft, DeleteWorkspaceEntity, SaveWorkspace, Workspace } from './workspace'
 import type { AccountPool, SaveAccount } from './accounts'
 import type { SaveWorkflow, Workflow } from './workflows'
@@ -75,6 +76,8 @@ export interface DesktopApi {
   submitGeneration(input: SubmitGeneration): Promise<Result<PreviewSnapshot>>
   scheduleGeneration(input: ScheduleGeneration): Promise<Result<PreviewSnapshot>>
   refreshGenerationResults(id: string, workflowUnchangedConfirmed: boolean): Promise<Result<PreviewSnapshot>>
+  consumptionLedger(filter: ConsumptionFilter): Promise<Result<ConsumptionLedger>>
+  refreshTaskConsumption(id: string): Promise<Result<void>>
   taskOutputAction(id: string, index: number, action: 'copy' | 'download'): Promise<Result<boolean>>
   exportTaskDiagnostics(id: string): Promise<Result<boolean>>
   retryFinalArchive(id: string): Promise<Result<void>>

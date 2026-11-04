@@ -6,10 +6,11 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faPen, faTrash, faRotateRight, faCheck, faDiagramProject, faArrowLeft } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faPen, faTrash, faRotateRight, faCheck, faDiagramProject, faArrowLeft, faReceipt } from '@fortawesome/free-solid-svg-icons'
 import { saveAccountSchema, type Account, type AccountPool, type SaveAccount } from '@contracts/accounts'
 import { Button } from '@/components/ui/button'
 import { useAccounts } from './use-accounts'
+import { ConsumptionDetails } from './ConsumptionDetails'
 
 const keyTypeLabels = new Map([['EXCLUSIVE', '独占'], ['SHARED', '共享'], ['NORMAL', '消费级']])
 const syncTime = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
@@ -78,6 +79,7 @@ export function AccountsPanel({ onDirty, onNotice, renderWorkflows }: {
   const [busy, setBusy] = useState<string | null>(null)
   const [managedAccount, setManagedAccount] = useState<string | null>(null)
   const [workflowDirty, setWorkflowDirty] = useState(false)
+  const [showConsumption, setShowConsumption] = useState(false)
   const onWorkflowDirty = useCallback((value: boolean) => { setWorkflowDirty(value); onDirty(value) }, [onDirty])
   async function perform(id: string, action: () => Promise<unknown>) {
     setBusy(id)
@@ -86,6 +88,7 @@ export function AccountsPanel({ onDirty, onNotice, renderWorkflows }: {
   }
   const pool = accounts.data
   const managed = pool?.accounts.find((account) => account.id === managedAccount)
+  if (showConsumption) return <ConsumptionDetails accounts={pool?.accounts ?? []} onBack={() => setShowConsumption(false)} />
   if (managed) return <div className="account-workflows"><div className="account-workflow-heading"><Button variant="ghost" size="icon" title="返回账号池" aria-label="返回账号池" onClick={async () => {
     if (workflowDirty && !(await confirmAction('放弃工作流的未保存修改？'))) return
     setManagedAccount(null); setWorkflowDirty(false); onDirty(false)
@@ -93,7 +96,8 @@ export function AccountsPanel({ onDirty, onNotice, renderWorkflows }: {
     {renderWorkflows(managed, onWorkflowDirty)}</div>
   return <section className="management-page accounts-page">
     <div className="management-toolbar"><div><h2>账号概览</h2><span className="muted">{pool ? `${pool.enabledCount} 个启用账号 · 额度已同步 ${pool.syncedCount}/${pool.enabledCount} · 队列已同步 ${pool.queueSyncedCount}/${pool.enabledCount}` : '正在读取账号'}</span></div>
-      <div className="button-row"><Button variant="outline" disabled={busy !== null} onClick={() => void perform('refresh', () => accounts.refresh())}><FontAwesomeIcon icon={faRotateRight} spin={busy === 'refresh'} />同步额度与队列</Button>
+      <div className="button-row"><Button variant="outline" disabled={editing !== undefined || busy !== null} onClick={() => setShowConsumption(true)}><FontAwesomeIcon icon={faReceipt} />消费明细</Button>
+        <Button variant="outline" disabled={busy !== null} onClick={() => void perform('refresh', () => accounts.refresh())}><FontAwesomeIcon icon={faRotateRight} spin={busy === 'refresh'} />同步额度与队列</Button>
         <Button disabled={editing !== undefined || busy !== null} onClick={() => setEditing(null)}><FontAwesomeIcon icon={faPlus} />添加账号</Button></div></div>
     {accounts.error && <p className="field-error">{accounts.error.message}</p>}
     <AccountSummary pool={pool} />

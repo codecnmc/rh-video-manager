@@ -5,6 +5,9 @@ import { continuousShotInputSchema } from '../../../../shared/contracts/continui
 import type { GenerationContext, GenerationGateway, GenerationRecord, GenerationRepository, FinalVideoArchive } from '../ports/generation'
 import { GenerationRejectedError } from '../ports/generation'
 import type { PreviewService } from './preview-service'
+import { consumptionFilterSchema, taskConsumptionSchema, type ConsumptionFilter, type ConsumptionLedger } from '../../../../shared/contracts/consumption'
+import { sumDecimals } from '../../accounts'
+import { mergeTaskConsumption } from '../domain/task-consumption'
 
 const terminal = (task: PreviewSnapshot) => Boolean(task.manualCancellationConfirmedAt) || task.remoteStatus === 'success' || task.remoteStatus === 'failed' || task.remoteStatus === 'cancelled'
 
@@ -12,6 +15,7 @@ export class GenerationService {
   private readonly busyAccounts = new Set<string>()
   private readonly busyDrafts = new Set<string>()
   private readonly refreshingResults = new Set<string>()
+  private readonly refreshingConsumption = new Set<string>()
   private readonly schedulingAccounts = new Set<string>()
   private readonly schedulingDrafts = new Set<string>()
   private stopped = false
@@ -29,6 +33,45 @@ export class GenerationService {
   list(): PreviewSnapshot[] {
     const jobs = this.repository.list()
     return jobs.map((job) => ({ ...job.preview, continuitySourceJobId: this.continuitySource(job, jobs) }))
+  }
+
+  consumptionLedger(raw: ConsumptionFilter): ConsumptionLedger {
+    const filter = consumptionFilterSchema.parse(raw)
+    const entries = this.repository.list().filter((job) => job.preview.remoteStatus === 'success' && /^\d{8,30}$/.test(job.preview.taskId))
+      .map((job) => ({ id: job.id, taskId: job.preview.taskId, projectId: job.preview.projectId,
+        accountId: job.preview.accountId, workflowId: job.preview.workflowId, title: job.draft.title,
+        submittedAt: job.preview.submittedAt ?? job.createdAt, remoteStatus: job.preview.remoteStatus,
+        consumption: job.preview.consumption ?? null }))
+      .filter((entry) => (!filter.accountId || entry.accountId === filter.accountId) &&
+        (!filter.projectId || entry.projectId === filter.projectId) &&
+        (!filter.from || Date.parse(entry.submittedAt) >= Date.parse(filter.from)) &&
+        (!filter.to || Date.parse(entry.submittedAt) <= Date.parse(filter.to)))
+      .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
+    // 同一远端任务仅计一次；未知费用不能算成零，金额字段没有币种信息，不能混合折算。
+    const unique = [...new Map(entries.map((entry) => [`${entry.accountId}/${entry.taskId}`, entry])).values()]
+    const known = unique.flatMap((entry) => entry.consumption?.coins != null ? [entry.consumption.coins] : [])
+    return { entries: unique, knownCoins: known.length ? sumDecimals(known) : null,
+      knownCount: known.length, unknownCount: unique.length - known.length }
+  }
+
+  async refreshConsumption(id: string): Promise<void> {
+    if (this.stopped || this.snapshotPaused) throw new Error('应用正在退出或导出，请稍后补查费用')
+    if (this.refreshingConsumption.has(id)) throw new Error('正在补查该任务费用')
+    const original = this.repository.list().find((job) => job.id === id)
+    if (!original || !/^\d{8,30}$/.test(original.preview.taskId) ||
+      original.preview.remoteStatus !== 'success') throw new Error('仅可补查生成成功的任务费用')
+    if (!this.gateway.queryConsumption) throw new Error('当前服务未接入费用查询')
+    this.refreshingConsumption.add(id)
+    try {
+      const consumption = taskConsumptionSchema.parse(await this.gateway.queryConsumption(original.preview.taskId,
+        this.context.credential(original.preview.accountId)))
+      if (this.stopped || this.snapshotPaused) throw new Error('费用保存已停止，请稍后重试')
+      const job = this.repository.list().find((item) => item.id === id)
+      if (!job || job.preview.remoteStatus !== 'success' || job.preview.taskId !== original.preview.taskId || job.preview.accountId !== original.preview.accountId) throw new Error('任务记录已变化，请刷新后重试')
+      // 只补费用，不恢复监听、修改终态、下载输出或触发付费提交。
+      job.preview.consumption = mergeTaskConsumption(job.preview.consumption, consumption)
+      this.publish(job)
+    } finally { this.refreshingConsumption.delete(id) }
   }
 
   private continuitySource(job: GenerationRecord, jobs: GenerationRecord[]): string | undefined {
@@ -55,7 +98,7 @@ export class GenerationService {
   }
   hasLocalStorageActivity(): boolean {
     return this.busyAccounts.size > 0 || this.busyDrafts.size > 0 ||
-      this.schedulingAccounts.size > 0 || this.schedulingDrafts.size > 0 || this.refreshingResults.size > 0 || this.archiving.size > 0 || this.preparingContinuity.size > 0
+      this.schedulingAccounts.size > 0 || this.schedulingDrafts.size > 0 || this.refreshingResults.size > 0 || this.refreshingConsumption.size > 0 || this.archiving.size > 0 || this.preparingContinuity.size > 0
   }
   pauseForSnapshot(): () => void {
     if (this.hasLocalStorageActivity()) throw new Error('视频正在提交、下载或处理文件，请完成后再导出')
@@ -118,7 +161,9 @@ export class GenerationService {
     }
     const job = this.repository.list().find((item) => item.id === id)
     if (!job) return event
-    if (event.type === 'state') job.preview = { ...job.preview, ...event.state, finalArchive: job.preview.finalArchive,
+    if (event.type === 'state') job.preview = { ...job.preview, ...event.state,
+      consumption: event.state.consumption ? mergeTaskConsumption(job.preview.consumption, event.state.consumption) : job.preview.consumption,
+      finalArchive: job.preview.finalArchive,
       continuityReference: job.preview.continuityReference,
       localReservationReleasedAt: job.preview.localReservationReleasedAt,
       ...(job.preview.manualCancellationConfirmedAt ? { manualCancellationConfirmedAt: job.preview.manualCancellationConfirmedAt } : {}) }
