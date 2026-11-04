@@ -64,6 +64,27 @@ test('偏好设置独立落库并拒绝越界字号', () => {
   } finally { database.close() }
 })
 
+test('首次引导偏好兼容旧数据，完成后持久化且不覆盖其他设置', () => {
+  const database = new WorkbenchDatabase(':memory:')
+  try {
+    const repository = new SqlitePreferencesRepository(database.connection)
+    const environment = { information: async () => ({ version: 'test', dataDirectory: 'data', logsDirectory: 'logs', availableBytes: null }), openDirectory: async () => undefined }
+    const service = new SettingsService(repository, environment)
+    assert.equal(service.preferences().onboardingVersion, undefined)
+    service.save({ taskNotifications: true, mcpAutoStart: false, editorFontSize: 18 })
+    service.save({ onboardingVersion: 1 })
+    const restored = new SettingsService(repository, environment).preferences()
+    assert.equal(restored.onboardingVersion, 1)
+    assert.equal(restored.editorFontSize, 18)
+    assert.equal(restored.taskNotifications, true)
+    assert.equal(restored.mcpAutoStart, false)
+    service.save({ assetLibraryView: 'tiles' })
+    assert.equal(service.preferences().onboardingVersion, 1)
+    for (const value of [-1, 0.5, NaN, Infinity]) assert.throws(() => service.save({ onboardingVersion: value }))
+    assert.equal(service.preferences().onboardingVersion, 1)
+  } finally { database.close() }
+})
+
 test('缩略图尺寸持久化保留其他偏好，拒绝越界和非步进值', () => {
   const database = new WorkbenchDatabase(':memory:')
   try {

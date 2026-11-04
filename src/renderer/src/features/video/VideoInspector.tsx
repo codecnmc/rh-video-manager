@@ -1,4 +1,4 @@
-import { confirmAction } from '@/components/ui/confirmation'
+import { confirmAction, showMessage } from '@/components/ui/confirmation'
 import { Disclosure } from '@/components/ui/disclosure'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -45,6 +45,10 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
   const [importing, setImporting] = useState(false)
   const importingRef = useRef(false)
   const [error, setError] = useState('')
+  function referenceError(message: string) {
+    setError(message)
+    void showMessage(message)
+  }
   const [picker, setPicker] = useState(false)
   const [replacement, setReplacement] = useState<DraftReference | null>(null)
   const [tab, setTab] = useState<'video' | 'dialogue'>(initialTab)
@@ -81,12 +85,12 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
     onNotice(missing ? `未绑定素材：${missing[0]}` : '结构检查通过：六节内容完整，素材引用均已绑定。')
   }
   function importReferences(action: () => Promise<void>) {
-    if (externalChanges) { setError('已有外部新版本，请先重新载入草稿再修改参考素材'); return }
-    if (generation.pending) { setError('视频提交中，暂不能修改参考素材'); return }
-    if (importingRef.current) { setError('正在导入参考素材，请稍后再粘贴或添加'); return }
+    if (externalChanges) { referenceError('已有外部新版本，请先重新载入草稿再修改参考素材'); return }
+    if (generation.pending) { referenceError('视频提交中，暂不能修改参考素材'); return }
+    if (importingRef.current) { referenceError('正在导入参考素材，请稍后再粘贴或添加'); return }
     importingRef.current = true
     setImporting(true); setError('')
-    void action().catch((failure: unknown) => setError(failure instanceof Error ? failure.message : '导入失败')).finally(() => {
+    void action().catch((failure: unknown) => referenceError(failure instanceof Error ? failure.message : '导入失败')).finally(() => {
       importingRef.current = false
       setImporting(false)
     })
@@ -145,14 +149,14 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
               await onSave(normalizedDraft(videoDraftSchema.parse(form.getValues())))
             }))
           }} onReplace={(reference) => {
-            if (externalChanges || importing || generation.pending) { setError('请先结束当前操作或载入最新草稿'); return }
+            if (externalChanges || importing || generation.pending) { referenceError('请先结束当前操作或载入最新草稿'); return }
             setReplacement(reference); setPicker(true)
           }} onRemove={async (reference) => {
-            if (externalChanges) { setError('已有外部新版本，请先重新载入草稿再解除引用'); return }
-            if (form.getValues('prompt').includes(reference.label)) { setError('请先移除提示词中的对应引用并保存'); return }
+            if (externalChanges) { referenceError('已有外部新版本，请先重新载入草稿再解除引用'); return }
+            if (form.getValues('prompt').includes(reference.label)) { referenceError('请先移除提示词中的对应引用并保存'); return }
             if (!(await confirmAction(`解除「${reference.name}」的关联？已导入文件会保留。`))) return
-            void references.remove(reference.id).catch((failure: unknown) => setError(failure instanceof Error ? failure.message : '解除关联失败'))
-          }} onReveal={(id) => { void references.reveal(id).catch((failure: unknown) => setError(failure instanceof Error ? failure.message : '无法定位素材')) }} />
+            void references.remove(reference.id).then(() => { setError(''); onNotice('已解除素材关联，原文件仍保留') }).catch((failure: unknown) => referenceError(failure instanceof Error ? failure.message : '解除关联失败'))
+          }} onReveal={(id) => { void references.reveal(id).catch((failure: unknown) => referenceError(failure instanceof Error ? failure.message : '无法定位素材')) }} />
         {(error || references.error) && <p className="field-error" role="alert">{error || references.error?.message}</p>}
         {(form.formState.errors.prompt || form.formState.errors.promptDocument) && <p className="field-error">{form.formState.errors.prompt?.message || form.formState.errors.promptDocument?.message}</p>}
         <div className="inspector-section parameter-section"><h3>片段参数</h3>

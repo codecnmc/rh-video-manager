@@ -15,7 +15,7 @@ import { WorkflowsPanel } from '@/features/workflows'
 import { LibraryPanel } from '@/features/assets'
 import { AssetMcpPanel } from '@/features/mcp'
 import { ExtensionsPanel, ExtensionPage, useExtensions } from '@/features/extensions'
-import { SettingsPanel } from '@/features/settings'
+import { SettingsPanel, FirstUseGuide, type GuideView } from '@/features/settings'
 import { SkillsPanel } from '@/features/skills'
 import { useWorkspace } from './use-workspace'
 import { usePreviews } from './use-previews'
@@ -76,6 +76,7 @@ export function Workbench() {
 }
 
 function WorkbenchContent({ detached }: { detached: boolean }) {
+  const [guideOpen, setGuideOpen] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [assemblyProjects, setAssemblyProjects] = useState<Array<string | null>>([])
   const [assemblyDirty, setAssemblyDirty] = useState<Record<string, boolean>>({})
@@ -169,6 +170,19 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
     if (dirty) setEditorVersion((value) => value + 1)
     setDirty(false)
     action()
+  }
+  async function navigateGuide(view: GuideView): Promise<boolean> {
+    if (ui.view === view) {
+      if (ui.sidebarCollapsed) ui.toggleSidebar()
+      return true
+    }
+    let changed = false
+    await navigate(() => {
+      ui.setView(view)
+      if (ui.sidebarCollapsed) ui.toggleSidebar()
+      changed = true
+    })
+    return changed
   }
   async function persist(next: Workspace) {
     // 编辑器分别清理自己的脏状态，保存视频不能清掉尚未保存的台词配置。
@@ -328,24 +342,24 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
     <aside className="sidebar" id="workbench-sidebar" aria-label="主菜单"><div className="sidebar-scroll"><div className="sidebar-section-title project-heading"><span>项目</span><div className="button-row">
       <Button variant="ghost" size="icon" title={dirty ? '请先保存当前修改再重命名项目' : '重命名当前项目'} aria-label="重命名当前项目" disabled={!project || busy || dirty} onClick={() => { if (project) setRenamingProject({ id: project.id, name: project.name }) }}><FontAwesomeIcon icon={faPen} /></Button>
       <Button variant="ghost" size="icon" title="删除当前项目" aria-label="删除当前项目" disabled={!project || busy} onClick={() => { if (project) void removeEntity('project', project.id, project.name) }}><FontAwesomeIcon icon={faTrash} /></Button>
-      <Button variant="ghost" size="icon" title="新建项目" aria-label="新建项目" onClick={() => navigate(() => ui.setDialog('project'))}><FontAwesomeIcon icon={faPlus} /></Button></div></div>
+      <Button data-guide-target="new-project" variant="ghost" size="icon" title="新建项目" aria-label="新建项目" onClick={() => navigate(() => ui.setDialog('project'))}><FontAwesomeIcon icon={faPlus} /></Button></div></div>
       <div className="project-switcher"><label className="sr-only" htmlFor="project-switch">当前项目</label><FontAwesomeIcon icon={faFilm} />
         <SelectField id="project-switch" disabled={data.projects.length === 0} value={project?.id ?? ''} onChange={(event) => navigate(() => { ui.selectProject(event.target.value); setGroupFilter('all'); setSearch(''); setSelectedDrafts([]); setActiveTask(null); setGroupDialog(null) })}>
           {!data.projects.length && <SelectOption value="">暂无项目</SelectOption>}{data.projects.map((item) => <SelectOption key={item.id} value={item.id}>{item.name}</SelectOption>)}</SelectField></div>
       <div className="primary-navigation">
-        <Button variant="unstyled" title="视频生成" aria-label="视频生成" className={`nav-item ${ui.view === 'video' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('video'))}><FontAwesomeIcon icon={faVideo} /><span>视频生成</span></Button>
+        <Button data-guide-target="video" variant="unstyled" title="视频生成" aria-label="视频生成" className={`nav-item ${ui.view === 'video' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('video'))}><FontAwesomeIcon icon={faVideo} /><span>视频生成</span></Button>
         <Button variant="unstyled" title="排片剪辑库" aria-label="排片剪辑库" className={`nav-item ${ui.view === 'assembly' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('assembly'))}><FontAwesomeIcon icon={faClapperboard} /><span>排片剪辑库</span></Button>
-        <Button variant="unstyled" title="素材生成" aria-label="素材生成" className={`nav-item ${ui.view === 'image-generation' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('image-generation'))}><FontAwesomeIcon icon={faImage} /><span>素材生成</span></Button>
-        <Button variant="unstyled" title="素材库" aria-label="素材库" className={`nav-item ${ui.view === 'assets' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('assets'))}><FontAwesomeIcon icon={faImages} /><span>素材库</span></Button>
+        <Button data-guide-target="image-generation" variant="unstyled" title="素材生成" aria-label="素材生成" className={`nav-item ${ui.view === 'image-generation' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('image-generation'))}><FontAwesomeIcon icon={faImage} /><span>素材生成</span></Button>
+        <Button data-guide-target="assets" variant="unstyled" title="素材库" aria-label="素材库" className={`nav-item ${ui.view === 'assets' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('assets'))}><FontAwesomeIcon icon={faImages} /><span>素材库</span></Button>
         <Button variant="unstyled" title="剧本库" aria-label="剧本库" className={`nav-item ${ui.view === 'script-library' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('script-library'))}><FontAwesomeIcon icon={faBookOpen} /><span>剧本库</span></Button>
         {(extensions.data ?? []).filter((extension) => extension.enabled).flatMap((extension) => (extension.manifest.contributes.pages ?? []).map((page) =>
           <Button variant="unstyled" key={`${extension.id}/${page.id}`} title={`${extension.manifest.displayName} · ${page.title}`} className={`nav-item ${ui.view === 'extension-page' && extensionSelection?.pageId === page.id ? 'active' : ''}`} onClick={() => navigate(() => { setExtensionSelection({ extensionId: extension.id, pageId: page.id }); ui.setView('extension-page') })}><FontAwesomeIcon icon={faPuzzlePiece} /><span>{page.title}</span></Button>))}
       </div>
       <div className="sidebar-bottom">
-        <Button variant="unstyled" title="任务队列" aria-label="任务队列" className={`nav-item ${ui.view === 'tasks' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /><span>任务队列</span><span className="nav-count">{previews.data ? allTasks.length : '未读取'}</span></Button>
-        <Button variant="unstyled" title="工作流总览" aria-label="工作流总览" className={`nav-item ${ui.view === 'workflows' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('workflows'))}><FontAwesomeIcon icon={faDiagramProject} /><span>工作流总览</span></Button>
-        <Button variant="unstyled" title="账号池" aria-label="账号池" className={`nav-item ${ui.view === 'accounts' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('accounts'))}><FontAwesomeIcon icon={faUsers} /><span>账号池</span></Button>
-        <Button variant="unstyled" title="MCP" aria-label="MCP" className={`nav-item ${ui.view === 'mcp' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('mcp'))}><FontAwesomeIcon icon={faPlug} /><span>MCP</span></Button>
+        <Button data-guide-target="tasks" variant="unstyled" title="任务队列" aria-label="任务队列" className={`nav-item ${ui.view === 'tasks' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /><span>任务队列</span><span className="nav-count">{previews.data ? allTasks.length : '未读取'}</span></Button>
+        <Button data-guide-target="workflows" variant="unstyled" title="工作流总览" aria-label="工作流总览" className={`nav-item ${ui.view === 'workflows' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('workflows'))}><FontAwesomeIcon icon={faDiagramProject} /><span>工作流总览</span></Button>
+        <Button data-guide-target="accounts" variant="unstyled" title="账号池" aria-label="账号池" className={`nav-item ${ui.view === 'accounts' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('accounts'))}><FontAwesomeIcon icon={faUsers} /><span>账号池</span></Button>
+        <Button data-guide-target="mcp" variant="unstyled" title="MCP" aria-label="MCP" className={`nav-item ${ui.view === 'mcp' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('mcp'))}><FontAwesomeIcon icon={faPlug} /><span>MCP</span></Button>
         <Button variant="unstyled" title="Skill" aria-label="Skill" className={`nav-item ${ui.view === 'skills' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('skills'))}><FontAwesomeIcon icon={faBookOpen} /><span>Skill</span></Button>
         <Button variant="unstyled" title="设置" aria-label="设置" className={`nav-item ${ui.view === 'settings' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('settings'))}><FontAwesomeIcon icon={faGear} /><span>设置</span></Button>
       </div></div><PoolStatus onNotice={setNotice} /><div className="local-status"><span className="ready-dot" /><span>SQLite · 本地存储</span></div>
@@ -361,7 +375,7 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
             : ui.view === 'image-generation' ? <ImageGenerationLibrary key={`images-${project?.id ?? 'public'}-${editorVersion}`} projectId={project?.id ?? null} workspaceHeader={workspaceHeader} onDirty={onDirty} onNotice={setNotice} registerSave={registerImageSave} />
             : ui.view === 'assembly' ? null
             : ui.view === 'script-library' ? <ScriptLibrary key={`library-${project?.id ?? 'unassigned'}-${editorVersion}`} projectId={project?.id ?? null} onDirty={onDirty} onNotice={setNotice} />
-            : ui.view === 'settings' ? <SettingsPanel key={`settings-${editorVersion}`} onDirty={onDirty} onNotice={setNotice} />
+            : ui.view === 'settings' ? <SettingsPanel key={`settings-${editorVersion}`} onDirty={onDirty} onNotice={setNotice} onOpenGuide={() => setGuideOpen(true)} />
             : ui.view === 'skills' ? <SkillsPanel onNotice={setNotice} />
             : ui.view === 'extension-page' ? <ExtensionPage key={`${extensionSelection?.extensionId}-${extensionSelection?.pageId}-${project?.id ?? 'public'}-${editorVersion}`} extension={selectedExtension} pageId={extensionSelection?.pageId ?? null} projectId={project?.id ?? null} onDirty={onDirty} onNotice={setNotice} />
             : ui.view === 'extensions' ? <ExtensionsPanel key={editorVersion} onDirty={onDirty} onNotice={setNotice} />
@@ -400,6 +414,7 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
       onSelect={selectTask} onDisconnect={previews.disconnect} onNotice={setNotice} actions={<>
         <Button variant="ghost" size="icon" title="打开完整任务队列" aria-label="打开完整任务队列" onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /></Button>
         <Button variant="ghost" size="icon" title="关闭任务浮窗" aria-label="关闭任务浮窗" onClick={() => ui.setQueueOpen(false)}><FontAwesomeIcon icon={faXmark} /></Button></>} /></TaskQueuePopover>
+    <FirstUseGuide autoStart={!detached} requested={guideOpen} onClose={() => setGuideOpen(false)} onNavigate={navigateGuide} activeView={ui.view} />
     {notice.message && <div key={notice.revision} className="toast" role="status"><span>{notice.message}</span><Button variant="ghost" size="icon" title="关闭通知" aria-label="关闭通知" onClick={() => setNotice('')}><FontAwesomeIcon icon={faXmark} /></Button></div>}
     {ui.dialog === 'project' && <NameDialog title="新建项目" onClose={() => ui.setDialog(null)} onCreate={createEntity} />}
     {managingGroups && !groupDialog && <Dialog title="管理分组" onClose={() => { if (!busy) setManagingGroups(false) }}>

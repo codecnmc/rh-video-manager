@@ -14,6 +14,7 @@ import { validPromptDocument } from '@contracts/prompt-document'
 import type { ReferenceKind, DraftReference } from '@contracts/references'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { InteractionHint } from '@/components/ui/interaction-hint'
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
 import { AssetImagePreview } from '@/features/assets'
 import { H3Syntax, ensureH3SyntaxPlugin, h3SyntaxPluginKey } from './h3-syntax'
@@ -103,6 +104,7 @@ export function PromptEditor({ text, document, duration, disabled, references, b
         </SelectField>
       </div></div>
       <div className="reference-counts"><span>图片 {referenceStatus === 'ready' ? counts('image') : '—'}/9</span><span>视频 {referenceStatus === 'ready' ? counts('video') : '—'}/3</span><span>音频 {referenceStatus === 'ready' ? counts('audio') : '—'}/3</span></div>
+      <InteractionHint label="右键素材名称：替换、引用、解除关联"><p>点击图片可预览，右键图片可复制。右键素材名称区域可替换并保留编号、插入提示词引用、打开文件位置或解除关联。解除前需删除提示词中的对应标签并保存；原文件和历史生成记录仍保留。也可聚焦素材后按 Shift+F10 打开菜单。</p></InteractionHint>
       {references.length > 0 ? <div className="prompt-reference-list">{references.map((reference) => <ContextMenu key={reference.id}>
         <ContextMenuTrigger asChild><div className="reference-item" tabIndex={0} role="group" aria-label={`${reference.label} ${reference.name}`} onKeyDown={(event) => {
           if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return

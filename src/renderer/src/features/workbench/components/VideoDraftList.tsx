@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowUp, faArrowDown, faCopy, faTrash, faCheck } from '@fortawesome/free-solid-svg-icons'
 import type { VideoDraft } from '@contracts/video'
 import { Button } from '@/components/ui/button'
+import { InteractionHint } from '@/components/ui/interaction-hint'
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
 
 interface VideoDraftListProps {
@@ -72,7 +73,7 @@ export function VideoDraftList(props: VideoDraftListProps) {
     props.onReorder(ids)
   }
 
-  return <div className="shot-items video-draft-items" ref={list}>
+  return <><InteractionHint label="右键草稿：复制、多选、排序"><p>右键草稿可复制、选择、上下移动或删除。选择后会显示批量移动分组入口；保存修改后可拖动草稿排序，搜索期间不能拖动排序。</p></InteractionHint><div className="shot-items video-draft-items" ref={list}>
     {props.drafts.map((draft, index) => <ContextMenu key={draft.id}>
       <ContextMenuTrigger asChild><div className={`video-draft-row ${props.activeId === draft.id ? 'selected' : ''}`}>
         {props.selectedIds.length > 0 && <input type="checkbox" aria-label={`选择草稿：${draft.title}`} checked={props.selectedIds.includes(draft.id)} disabled={props.busy} onChange={() => props.onToggleSelection(draft.id)} />}
@@ -96,5 +97,5 @@ export function VideoDraftList(props: VideoDraftListProps) {
       </ContextMenuContent>
     </ContextMenu>)}
     {!props.drafts.length && <div className="queue-empty">{props.emptyMessage}</div>}
-  </div>
+  </div></>
 }

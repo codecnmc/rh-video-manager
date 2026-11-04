@@ -9,7 +9,7 @@ export function CopyableAssetImage({ assetId, disabled, onNotice, ...props }: Co
 }) {
   const clipboard = useCopyAssetImage(onNotice)
   return <ContextMenu><ContextMenuTrigger asChild>
-    <img {...props} src={`workbench-asset://library/${assetId}`} />
+    <img {...props} title={props.title ?? '右键可复制图片或素材库 ID'} src={`workbench-asset://library/${assetId}`} />
   </ContextMenuTrigger><ContextMenuContent>
     <ContextMenuItem disabled={disabled || clipboard.busy} onSelect={(event) => { event.preventDefault(); void clipboard.copy(assetId) }}>
       <FontAwesomeIcon icon={faCopy} />{clipboard.busy ? '正在复制…' : '复制图片'}

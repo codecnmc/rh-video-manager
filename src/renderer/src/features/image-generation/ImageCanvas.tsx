@@ -264,12 +264,12 @@ function Canvas({ board, tasks, assets, control, placement, focusId, children, o
       <Button variant="ghost" size="icon" title="重做 (Ctrl+Shift+Z)" aria-label="重做" disabled={!storage.canRedo} onClick={storage.redo}><FontAwesomeIcon icon={faArrowRotateRight} /></Button>
       <Button variant="ghost" size="icon" title={storage.hasExternalChanges ? '其他窗口已更新布局，请先重新载入' : storage.saving ? '正在自动保存画布' : storage.failed ? '自动保存失败，点击重试 (Ctrl+S)' : storage.dirty ? '等待自动保存画布 (Ctrl+S 可立即保存)' : '画布布局已自动保存'} aria-label="保存画布布局" className={storage.dirty ? 'is-dirty' : ''} disabled={!storage.dirty || control.busy || storage.saving || storage.hasExternalChanges} onClick={() => void storage.save()}><FontAwesomeIcon icon={storage.saving ? faSpinner : faFloppyDisk} spin={storage.saving} /></Button>
       <Button variant="ghost" size="icon" title="恢复全部移出的节点" aria-label="恢复全部移出的节点" disabled={!layout.hiddenNodeIds.length} onClick={() => storage.change((previous) => ({ ...previous, hiddenNodeIds: [] }))}><FontAwesomeIcon icon={faRotateRight} /></Button>
-      <Button variant="ghost" size="icon" title="快捷键" aria-label="快捷键" onClick={() => setShowHelp(true)}><FontAwesomeIcon icon={faKeyboard} /></Button>
+      <Button variant="ghost" size="small" title="画布操作说明与快捷键" onClick={() => setShowHelp(true)}><FontAwesomeIcon icon={faKeyboard} />操作说明</Button>
     </div>
     {!nodes.length && <div className="image-canvas-empty"><FontAwesomeIcon icon={faImages} /><h2>暂无画布节点</h2><div className="button-row"><Button variant="outline" disabled={control.busy} onClick={() => void importImages()}><FontAwesomeIcon icon={faFileImport} />导入图片</Button><Button onClick={() => onNewTask()}><FontAwesomeIcon icon={faPlus} />新建图片任务</Button></div></div>}
     {dragOver && <div className="image-canvas-drop-indicator" aria-hidden="true"><FontAwesomeIcon icon={faFileImport} /></div>}
     <ViewportPortal>{children(Object.fromEntries(nodes.map((node) => [node.id, node.position])))}</ViewportPortal>
-    {showHelp && <Dialog title="画布快捷键" className="image-shortcuts-dialog" onClose={() => setShowHelp(false)}><dl>{shortcuts.map(([key, label]) => <div key={key}><dt><kbd>{key}</kbd></dt><dd>{label}</dd></div>)}</dl></Dialog>}
+    {showHelp && <Dialog title="画布操作说明与快捷键" className="image-shortcuts-dialog" onClose={() => setShowHelp(false)}><p>右键画布可插入素材、导入图片或新建任务；选择图片后右键可用作参考或移出画布。拖动连接点可建立参考连线，选中连线后可解除引用。双击图片可预览，也可将本地图片拖入画布或直接粘贴。</p><dl>{shortcuts.map(([key, label]) => <div key={key}><dt><kbd>{key}</kbd></dt><dd>{label}</dd></div>)}</dl></Dialog>}
   </div></ContextMenuTrigger><ContextMenuContent>
     <ContextMenuItem disabled={control.busy} onSelect={() => onPickAssets(contextPoint.current)}><FontAwesomeIcon icon={faImages} />插入素材</ContextMenuItem>
     <ContextMenuItem disabled={control.busy} onSelect={() => void importImages(undefined, contextPoint.current)}><FontAwesomeIcon icon={faFileImport} />导入图片</ContextMenuItem>

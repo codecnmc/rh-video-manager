@@ -5,6 +5,7 @@ export const appPreferencesSchema = z.strictObject({
   editorMode: editorModeSchema,
   editorFontSize: z.number().int().min(12).max(24),
   taskNotifications: z.boolean(),
+  onboardingVersion: z.number().int().min(0).optional(),
   mcpAutoStart: z.boolean().optional(),
   assetLibraryView: z.enum(['details', 'tiles']).optional(),
   imageGenerationCardSize: z.number().int().min(220).max(400).multipleOf(20).optional(),

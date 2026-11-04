@@ -10,6 +10,7 @@ import { CheckboxField } from '@/components/ui/checkbox-field'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { confirmAction } from '@/components/ui/confirmation'
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
+import { InteractionHint } from '@/components/ui/interaction-hint'
 import { useLibraryDrag } from './use-library-drag'
 import { useLibraryMarquee } from './use-library-marquee'
 import { useLibrary } from './use-library'
@@ -182,6 +183,7 @@ export function LibraryPanel({ projectId, projects, onNotice, onDirty }: {
       <SelectField aria-label="素材范围" value={scope} onChange={(event) => { setScope(event.target.value); setHistory({ folders: ['none'], index: 0 }); setSelected([]); setCut([]); setContext({ kind: 'blank' }); setSearch('') }}><SelectOption value="all">全部项目与公共素材</SelectOption>{projectId && <SelectOption value="project">当前项目</SelectOption>}<SelectOption value="public">公共素材</SelectOption></SelectField>
       <label className="checkbox-label"><CheckboxField checked={archived} onChange={(event) => { setArchived(event.target.checked); setSelected([]) }} />已归档</label>
     </div>
+    <InteractionHint label="双击预览 · 右键素材或文件夹查看更多操作"><p>右键素材可复制图片或素材库 ID、打开文件位置、编辑和移动。右键文件夹可新建子文件夹、重命名或移动文件夹。Ctrl / Shift 可多选，空白处拖动可框选；选中素材后可用顶部工具栏剪切和移动。图片预览中也可右键复制。</p></InteractionHint>
     {(error || library.assets.error || library.categories.error) && <p className="field-error" role="alert">{error || library.assets.error?.message || library.categories.error?.message}</p>}
     <ContextMenu><ContextMenuTrigger asChild><div className="asset-library-layout" onDragStart={drag.onDragStart} onDragOver={drag.onDragOver} onDrop={drag.onDrop} onDragLeave={drag.onDragLeave} onDragEnd={drag.onDragEnd}
       onContextMenuCapture={(event) => {

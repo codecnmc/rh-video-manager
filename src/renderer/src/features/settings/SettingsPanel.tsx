@@ -37,7 +37,7 @@ function PreferencesForm({ preferences, onDirty, onSaved }: { preferences: AppPr
   </section></fieldset></form>
 }
 
-export function SettingsPanel({ onDirty, onNotice }: { onDirty: (dirty: boolean) => void; onNotice: (message: string) => void }) {
+export function SettingsPanel({ onDirty, onNotice, onOpenGuide }: { onDirty: (dirty: boolean) => void; onNotice: (message: string) => void; onOpenGuide: () => void }) {
   const preferences = usePreferences()
   const information = useQuery({ queryKey: ['app-information'], queryFn: async () => unwrap(await desktop().appInformation()), retry: false })
   const client = useQueryClient()
@@ -56,6 +56,7 @@ export function SettingsPanel({ onDirty, onNotice }: { onDirty: (dirty: boolean)
     {(preferences.error || information.error || error) && <p className="field-error" role="alert">{preferences.error?.message || information.error?.message || error}</p>}
     <div className="settings-columns"><div className="settings-column">
     <ReleaseUpdates />
+    <section className="settings-section"><h3>使用帮助</h3><Button variant="outline" onClick={onOpenGuide}>重新打开首次使用引导</Button></section>
     {preferences.data && <PreferencesForm preferences={preferences.data} onDirty={onDirty} onSaved={(saved) => { client.setQueryData(['app-preferences'], saved); onNotice('设置已保存') }} />}
     <section className="settings-section"><h3>剧本库备份</h3><div className="button-row"><Button variant="outline" disabled={busy} onClick={() => void act(async () => { if (unwrap(await desktop().exportLibraryBackup())) onNotice('剧本库文档已导出') })}><FontAwesomeIcon icon={faDownload} />导出文档备份</Button>
       <Button variant="outline" disabled={busy} onClick={() => void act(async () => { const count = unwrap(await desktop().importLibraryBackup()); if (count !== null) { await client.invalidateQueries({ queryKey: ['script-library'] }); onNotice(`已导入 ${count} 个文档副本`) } })}><FontAwesomeIcon icon={faUpload} />导入文档备份</Button></div>
