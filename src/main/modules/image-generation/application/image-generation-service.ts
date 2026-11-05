@@ -82,6 +82,11 @@ export class ImageGenerationService {
       (node.status === 'queued' || occupiesImageCapacity(node) || node.status === 'downloading'))
   }
   hasActivity() { return this.active.size > 0 }
+  hasCloseActivity(): boolean {
+    // 受理不明记录仍占位，但无实际操作时不影响正常退出。
+    return this.hasActivity() || this.repository.nodes().some((node) =>
+      ['queued', 'preparing', 'generating', 'downloading'].includes(node.status))
+  }
   async saveAccount(raw: SaveImageAccount) {
     const input = saveImageAccountSchema.parse(raw)
     const previous = input.id ? this.repository.accounts().find((record) => record.account.id === input.id) : undefined

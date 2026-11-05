@@ -96,6 +96,12 @@ export class GenerationService {
   hasStorageActivity(): boolean {
     return this.hasPending() || this.hasLocalStorageActivity()
   }
+  hasCloseActivity(): boolean {
+    // 历史待确认只保留核对与占位保护，不把它当成退出时仍在执行的任务。
+    return this.hasLocalStorageActivity() || this.repository.list().some(({ preview }) =>
+      !terminal(preview) && ['queued', 'running'].includes(preview.remoteStatus) &&
+      preview.connection !== 'disconnected' && !['requested', 'uncertain'].includes(preview.cancelState))
+  }
   hasLocalStorageActivity(): boolean {
     return this.busyAccounts.size > 0 || this.busyDrafts.size > 0 ||
       this.schedulingAccounts.size > 0 || this.schedulingDrafts.size > 0 || this.refreshingResults.size > 0 || this.refreshingConsumption.size > 0 || this.archiving.size > 0 || this.preparingContinuity.size > 0

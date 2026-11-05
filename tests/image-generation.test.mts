@@ -33,6 +33,20 @@ function setup(gateway?: Omit<ImageGateway, 'diagnoseOutput'>, cachedOutput?: st
   return { database, repository, service, generated: () => generated }
 }
 
+test('生图受理不明不影响退出，但仍占位；排队与执行状态继续提醒', async () => {
+  const app = setup()
+  try {
+    const board = await app.service.createBoard({ id: randomUUID(), projectId: null, title: '画布' })
+    const node = await app.service.createNode({ id: randomUUID(), boardId: board.id, title: '任务', prompt: '画面', size: '1280x720', accountId: null, references: [] })
+    for (const status of ['acceptance_unknown', 'queued', 'preparing', 'generating', 'downloading'] as const) {
+      const current = app.repository.node(node.id)
+      app.repository.saveNodes([{ ...current, status, revision: current.revision + 1 }], [current.revision])
+      assert.equal(app.service.hasPending(), true)
+      assert.equal(app.service.hasCloseActivity(), status !== 'acceptance_unknown')
+    }
+  } finally { app.service.stop(); app.database.close() }
+})
+
 test('生成结果无需审核即可手动引用，仍校验素材修订且保留历史审核字段', async () => {
   const asset: Asset = { id: randomUUID(), projectId: null, categoryId: null, kind: 'image', name: '已生成图片', tags: [], prompt: '', notes: '',
     size: 8, createdAt: '2026-10-28T00:00:00.000Z', updatedAt: '2026-10-28T00:00:00.000Z', archived: false }

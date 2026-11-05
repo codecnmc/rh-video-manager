@@ -312,8 +312,8 @@ export async function initializeWorkbench(): Promise<void> {
   const closePrompts = new WindowClosePrompts()
   const closingWindows = new WeakSet<BrowserWindow>()
   const confirmedWindows = new WeakSet<BrowserWindow>()
-  const hasGenerationActivity = () => imageGeneration?.hasPending() || imageGeneration?.hasActivity() ||
-    generation?.hasStorageActivity() || production.hasStorageActivity()
+  const hasGenerationActivity = () => imageGeneration?.hasCloseActivity() ||
+    generation?.hasCloseActivity() || production.hasStorageActivity()
   const confirmTaskClose = async (window: BrowserWindow | undefined, exiting: boolean): Promise<boolean> => {
     if (window && closePrompts.isReady(window.id) && !window.isDestroyed() && !window.webContents.isDestroyed() && !window.webContents.isLoading() && !window.webContents.isCrashed()) {
       if (window.isMinimized()) window.restore()
