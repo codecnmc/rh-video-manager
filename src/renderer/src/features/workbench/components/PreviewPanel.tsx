@@ -6,6 +6,7 @@ import type { PreviewKind, PreviewMedia, PreviewSnapshot } from '@contracts/prev
 import { Button } from '@/components/ui/button'
 import { SelectField, SelectOption } from '@/components/ui/select-field'
 import { desktop, unwrap } from '@/shared/lib/desktop'
+import { recordConsumptionLabel, summarizeDraftConsumption } from '../draft-consumption'
 
 const labels: Record<PreviewKind, string> = { sampling: '实时采样', draft: '低清预览', final: '最终成片' }
 
@@ -59,6 +60,7 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
   const [downloading, setDownloading] = useState(false)
   const [duration, setDuration] = useState<{ source: string; seconds: number } | null>(null)
   const seconds = media && duration?.source === media.source ? duration.seconds : null
+  const hasConsumption = preview?.consumption?.coins != null && !preview.consumption.conflictingFields.includes('coins') && /^\d{8,30}$/.test(preview.taskId)
   async function download() {
     if (!preview) return
     setDownloading(true)
@@ -76,6 +78,7 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
     <div className="media-footer"><span className="muted">{media ? new Date(media.receivedAt).toLocaleTimeString('zh-CN') : '无可播放媒体'}
       {seconds !== null && ` · ${kind === 'sampling' ? '采样片段' : '实际'} ${seconds.toFixed(1)}秒`}
       {kind !== 'sampling' && preview?.requestedDuration !== undefined && ` · 目标 ${preview.requestedDuration}秒`}
+      {kind === 'final' && hasConsumption && preview && <span className="preview-record-consumption"> · 本次 {recordConsumptionLabel(preview)}</span>}
       {kind === 'sampling' && preview?.samplingTotal ? ` · ${preview.samplingStep} / ${preview.samplingTotal}步` : ''}</span>
       <div className="button-row">
         <Button variant="ghost" size="icon" title={`复制${labels[kind]} URL`} aria-label={`复制${labels[kind]} URL`} disabled={!remoteMedia || !remoteMedia.source.startsWith('https:')}
@@ -100,6 +103,7 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
 
 export function PreviewPanel({ preview, predecessor, title, onNotice, records, selectedRecord, onSelectRecord }: PreviewPanelProps) {
   const [outputPending, setOutputPending] = useState(false)
+  const consumption = summarizeDraftConsumption(records)
   const outputs = (preview?.resultVideos ?? []).map((output, index) => ({ output, index }))
     .filter(({ output }) => output.source !== preview?.draft?.source && output.source !== preview?.final?.source)
   async function outputAction(index: number, action: 'copy' | 'download') {
@@ -111,12 +115,17 @@ export function PreviewPanel({ preview, predecessor, title, onNotice, records, s
     finally { setOutputPending(false) }
   }
   return <section className="review-pane">
-    <div className="pane-toolbar"><h2>{title}</h2><span className="muted">{preview ? '远端任务' : '视频预览'}</span></div>
+    <div className="pane-toolbar preview-toolbar"><h2>{title}</h2>
+      {consumption.knownCoins !== null
+        ? <div className="draft-consumption" title={`草稿历史生成的已知耗币合计，共 ${consumption.knownCount} 笔`}><span className="muted">累计</span> <strong>{consumption.knownCoins}</strong> <span className="muted">RH 币</span></div>
+        : <span className="muted">{preview ? '远端任务' : '视频预览'}</span>}
+    </div>
     <div className="generation-records"><label htmlFor="generation-record">生成记录（{records.length}）</label>
       <SelectField id="generation-record" value={selectedRecord && records.some((item) => item.id === selectedRecord) ? selectedRecord : 'latest'} disabled={!records.length} onChange={(event) => onSelectRecord(event.target.value === 'latest' ? null : event.target.value)}>
         <SelectOption value="latest">最新记录{records[0] ? ` · ${records[0].stage}` : ' · 暂无'}</SelectOption>
         {records.map((record, index) => <SelectOption key={record.id} value={record.id}>{`第 ${records.length - index} 次 · ${record.submittedAt ? new Date(record.submittedAt).toLocaleString('zh-CN') : record.taskId || record.id} · ${record.stage}`}</SelectOption>)}
-      </SelectField></div>
+      </SelectField>
+    </div>
     <PreviewSlot key={`${preview?.id}-final`} preview={preview} kind="final" onNotice={onNotice} />
     <ContinuityPreview key={`${preview?.id}-${predecessor?.id}`} predecessor={predecessor} sampling={preview?.sampling ?? null} onNotice={onNotice} />
     <div className="early-previews">

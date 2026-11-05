@@ -520,6 +520,11 @@ td small { display: block; color: #b18b4d; font-size: 14px; }
 .video-draft-row > input[type="checkbox"] { flex-shrink: 0; margin-left: 5px; width: 14px; height: 14px; }
 .generation-records { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; min-width: 0; }
 .generation-records > button { width: 100%; min-width: 0; }
+.preview-toolbar { flex-wrap: wrap; }
+.preview-toolbar h2 { flex: 1; }
+.draft-consumption { font-size: 13px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.draft-consumption strong { font-variant-numeric: tabular-nums; }
+.preview-record-consumption { font-variant-numeric: tabular-nums; }
 .video-draft-row.selected { background: var(--primary-soft); color: #20777c; border-left-color: var(--primary); }
 .video-draft-row:hover:not(.selected) { background: #f7f9fa; }
 .video-draft-row > .video-draft-item { color: inherit; }
