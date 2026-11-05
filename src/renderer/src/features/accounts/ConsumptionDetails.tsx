@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { SelectField, SelectOption } from '@/components/ui/select-field'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { useConsumption } from './use-consumption'
+import { coinsPerSecond, consumptionSeconds } from './consumption-metrics'
 
 const pageSize = 50
 const dateFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -76,18 +77,24 @@ export function ConsumptionDetails({ accounts, onBack }: { accounts: Account[]; 
     {notice && <p className="inline-warning" role="status">{notice}</p>}
     <div className="management-table-scroll consumption-table-scroll" role="region" aria-label="成功任务消费明细" tabIndex={0}><Table className="management-table consumption-table"><colgroup>
       <col className="consumption-col-time" /><col /><col className="consumption-col-account" />
-      <col className="consumption-col-amount" /><col className="consumption-col-amount" /><col className="consumption-col-api" /><col className="consumption-col-query" />
+      <col className="consumption-col-rate" /><col className="consumption-col-rate" />
+      <col className="consumption-col-costs" /><col className="consumption-col-query" />
     </colgroup><TableHeader><TableRow>
       <TableHead scope="col">提交时间</TableHead><TableHead scope="col">项目 / 任务</TableHead><TableHead scope="col">账号 / 工作流</TableHead>
-      <TableHead scope="col" className="consumption-number">RH 币</TableHead><TableHead scope="col" className="consumption-number" title="consumeMoney，平台未声明币种，不与 RH 币相加">运行费用</TableHead>
-      <TableHead scope="col" className="consumption-number" title="thirdPartyConsumeMoney，平台未声明币种，不与 RH 币相加">第三方 API 费用</TableHead><TableHead scope="col">费用查询</TableHead>
+      <TableHead scope="col" className="consumption-number" title="视频时长及每视频秒 RH 币；时长取提交快照">视频秒数 / RH币</TableHead>
+      <TableHead scope="col" className="consumption-number" title="平台运行时长及每运行秒 RH 币">运行秒数 / RH币</TableHead>
+      <TableHead scope="col" className="consumption-number" title="RH 币、运行费用、第三方 API 费用分项显示，不同单位不相加">RH币 / 费用</TableHead><TableHead scope="col">费用查询</TableHead>
     </TableRow></TableHeader><TableBody>{visible.map((entry) => <TableRow key={entry.id}>
       <TableCell><ConsumptionTime value={entry.submittedAt} /></TableCell>
       <TableCell><strong className="consumption-task-title" title={entry.title}>{entry.title}</strong><small className="consumption-project-name" title={`${projectName(entry.projectId)} · ${entry.projectId}`}>{projectName(entry.projectId)}</small><small>{entry.taskId}</small></TableCell>
       <TableCell><span className="consumption-account-name" title={`${accountName(entry.accountId)} · ${entry.accountId}`}>{accountName(entry.accountId)}</span><small>{entry.workflowId}</small></TableCell>
-      <TableCell className="consumption-number"><ConsumptionAmount consumption={entry.consumption} field="coins" /></TableCell>
-      <TableCell className="consumption-number"><ConsumptionAmount consumption={entry.consumption} field="money" /></TableCell>
-      <TableCell className="consumption-number"><ConsumptionAmount consumption={entry.consumption} field="thirdPartyMoney" /></TableCell>
+      <TableCell className="consumption-number">{consumptionSeconds(entry.videoSeconds)}<small>{coinsPerSecond(entry.consumption, entry.videoSeconds) ?? '未知'} RH币/秒</small></TableCell>
+      <TableCell className="consumption-number">{consumptionSeconds(entry.executionSeconds)}<small>{coinsPerSecond(entry.consumption, entry.executionSeconds) ?? '未知'} RH币/秒</small></TableCell>
+      <TableCell className="consumption-number"><div className="consumption-costs">
+        <div><span>RH币</span><ConsumptionAmount consumption={entry.consumption} field="coins" /></div>
+        <div title="consumeMoney，平台未声明币种"><span>运行费用</span><ConsumptionAmount consumption={entry.consumption} field="money" /></div>
+        <div title="thirdPartyConsumeMoney，平台未声明币种"><span>第三方 API</span><ConsumptionAmount consumption={entry.consumption} field="thirdPartyMoney" /></div>
+      </div></TableCell>
       <TableCell><div className="consumption-query"><Button variant="ghost" size="icon" title="查询原任务费用（不会重新生成）" aria-label={`查询 ${entry.title} 费用`} disabled={busy} onClick={() => void refresh([entry.id])}><FontAwesomeIcon icon={faRotateRight} spin={busy && consumption.refresh.variables?.includes(entry.id)} /></Button>
         {entry.consumption ? <ConsumptionTime value={entry.consumption.checkedAt} /> : <span className="muted">未查询</span>}</div></TableCell>
     </TableRow>)}</TableBody></Table>

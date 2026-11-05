@@ -27,6 +27,8 @@ export interface ConsumptionEntry {
   workflowId: string
   title: string
   submittedAt: string
+  videoSeconds: number | null
+  executionSeconds: number | null
   remoteStatus: 'unknown' | 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
   consumption: TaskConsumption | null
 }

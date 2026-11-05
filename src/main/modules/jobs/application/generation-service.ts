@@ -41,6 +41,8 @@ export class GenerationService {
       .map((job) => ({ id: job.id, taskId: job.preview.taskId, projectId: job.preview.projectId,
         accountId: job.preview.accountId, workflowId: job.preview.workflowId, title: job.draft.title,
         submittedAt: job.preview.submittedAt ?? job.createdAt, remoteStatus: job.preview.remoteStatus,
+        videoSeconds: job.preview.requestedDuration ?? job.draft.duration,
+        executionSeconds: job.preview.executionSeconds ?? null,
         consumption: job.preview.consumption ?? null }))
       .filter((entry) => (!filter.accountId || entry.accountId === filter.accountId) &&
         (!filter.projectId || entry.projectId === filter.projectId) &&

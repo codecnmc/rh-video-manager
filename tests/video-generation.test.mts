@@ -208,6 +208,47 @@ test('所有非成功任务拒绝补查，不查询账号凭据或远端费用',
   assert.equal(app.creates, 1)
 })
 
+test('待确认历史不影响退出，但仍保留占位和未结束判断', async () => {
+  const app = setup()
+  const initial = await app.service.submit(app.input)
+  const record = app.records.get(initial.id)!
+  for (const status of ['unknown', 'queued', 'running'] as const) {
+    record.preview.remoteStatus = status
+    record.preview.connection = 'connected'
+    record.preview.cancelState = 'none'
+    app.records.set(record.id, structuredClone(record))
+    assert.equal(app.service.hasCloseActivity(), status !== 'unknown')
+    assert.equal(app.service.hasPending(), true)
+    assert.equal(app.service.hasStorageActivity(), true)
+    record.preview.connection = 'disconnected'
+    app.records.set(record.id, structuredClone(record))
+    assert.equal(app.service.hasCloseActivity(), false)
+    record.preview.connection = 'connected'
+    for (const cancelState of ['requested', 'uncertain'] as const) {
+      record.preview.cancelState = cancelState
+      app.records.set(record.id, structuredClone(record))
+      assert.equal(app.service.hasCloseActivity(), false)
+    }
+  }
+})
+
+test('消费明细使用提交时视频秒数和平台运行秒数，不从时间差猜测', async () => {
+  const app = setup()
+  const initial = await app.service.submit(app.input)
+  const record = app.records.get(initial.id)!
+  record.preview.remoteStatus = 'success'
+  record.preview.requestedDuration = 12
+  record.preview.executionSeconds = 320.5
+  app.records.set(record.id, structuredClone(record))
+  assert.equal(app.service.consumptionLedger({}).entries[0]?.videoSeconds, 12)
+  assert.equal(app.service.consumptionLedger({}).entries[0]?.executionSeconds, 320.5)
+  delete record.preview.requestedDuration
+  delete record.preview.executionSeconds
+  app.records.set(record.id, structuredClone(record))
+  assert.equal(app.service.consumptionLedger({}).entries[0]?.videoSeconds, record.draft.duration)
+  assert.equal(app.service.consumptionLedger({}).entries[0]?.executionSeconds, null)
+})
+
 test('费用查询返回前成功状态已变化时拒绝保存', async () => {
   const app = setup()
   const initial = await app.service.submit(app.input)
