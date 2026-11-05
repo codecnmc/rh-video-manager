@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlus, faClapperboard, faChevronLeft, faChevronRight, faRotateRight, faArrowUpRightFromSquare, faLock } from '@fortawesome/free-solid-svg-icons'
@@ -20,9 +20,9 @@ import './assembly.css'
 const createSchema = z.object({ title: z.string().trim().min(1, '请输入工程名称').max(150), episode: z.string().regex(/^$|^[1-9]\d{0,5}$/, '集数应为 1 至 999999，或留空') })
 type CreateValues = z.infer<typeof createSchema>
 
-export function AssemblyLibrary({ projectId, onDirty, onNotice, active = true, detached = false, initialDocumentId }: {
+export function AssemblyLibrary({ projectId, onDirty, onNotice, active = true, detached = false, initialDocumentId, windowRequest = 0 }: {
   projectId: string | null; onDirty: (value: boolean) => void; onNotice: (message: string) => void
-  active?: boolean; detached?: boolean; initialDocumentId?: string
+  active?: boolean; detached?: boolean; initialDocumentId?: string; windowRequest?: number
 }) {
   const library = useAssembly(projectId)
   const windows = useAssemblyWindows()
@@ -37,6 +37,12 @@ export function AssemblyLibrary({ projectId, onDirty, onNotice, active = true, d
   const [editing, setEditing] = useState<AssemblyDocument | null>(null)
   const [editorSession, setEditorSession] = useState(0)
   const [creating, setCreating] = useState(false)
+  const [choosingWindow, setChoosingWindow] = useState(false)
+  const [openingWindow, setOpeningWindow] = useState(false)
+  const openingWindowPending = useRef(false)
+  const handledWindowRequest = useRef(0)
+  const editorWindowOpener = useRef<(() => Promise<void>) | null>(null)
+  const registerWindowOpener = useCallback((action: (() => Promise<void>) | null) => { editorWindowOpener.current = action }, [])
   const [recent, setRecent] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -87,9 +93,34 @@ export function AssemblyLibrary({ projectId, onDirty, onNotice, active = true, d
     }
   }, [locked, windows.data])
   async function openWindow(document: AssemblyDocument) {
-    await desktop().openAssemblyWindow({ projectId, id: document.id }).then(unwrap)
-    await windows.refetch()
+    if (openingWindowPending.current) return
+    openingWindowPending.current = true
+    setOpeningWindow(true)
+    try {
+      await desktop().openAssemblyWindow({ projectId, id: document.id }).then(unwrap)
+      setChoosingWindow(false)
+      await windows.refetch()
+    } finally { openingWindowPending.current = false; setOpeningWindow(false) }
   }
+  useEffect(() => {
+    if (!windowRequest || handledWindowRequest.current === windowRequest || detached) return
+    if (windows.isPending || library.documents.isPending || selection.isPending || resuming) return
+    handledWindowRequest.current = windowRequest
+    if (windows.error || library.documents.error) { onNotice(windows.error?.message ?? library.documents.error?.message ?? '读取剪辑工程失败'); return }
+    if (owned) {
+      void desktop().openAssemblyWindow(owned).then(unwrap).catch((error: unknown) => onNotice(error instanceof Error ? error.message : '无法唤回剪辑窗口'))
+      return
+    }
+    if (editing) {
+      if (editorWindowOpener.current) void editorWindowOpener.current()
+      else onNotice('剪辑编辑器正在载入，请稍候重试')
+      return
+    }
+    const document = documents.find((item) => item.id === selection.data) ?? (documents.length === 1 ? documents[0] : undefined)
+    if (document) void openWindow(document).catch((error: unknown) => onNotice(error instanceof Error ? error.message : '打开独立剪辑窗口失败'))
+    else if (documents.length) setChoosingWindow(true)
+    else onNotice('当前项目还没有排片工程，请先创建工程')
+  }, [windowRequest, detached, windows.isPending, windows.error, owned, library.documents.isPending, library.documents.error, selection.isPending, selection.data, resuming, editing, documents, onNotice])
   async function create(values: CreateValues) {
     const versionId = crypto.randomUUID()
     const content: AssemblyContent = { title: values.title, episode: values.episode ? Number(values.episode) : null,
@@ -114,7 +145,7 @@ export function AssemblyLibrary({ projectId, onDirty, onNotice, active = true, d
     <p>{documents.find((item) => item.id === owned.id)?.title ?? '剪辑工程'}</p><Button onClick={() => void desktop().openAssemblyWindow(owned).then(unwrap).catch((error: unknown) => onNotice(error instanceof Error ? error.message : '无法唤回剪辑窗口'))}><FontAwesomeIcon icon={faArrowUpRightFromSquare} />切换到剪辑窗口</Button></section>
   if (resuming) return <section className="assembly-session-status" role="status">正在读取独立窗口的最新剪辑</section>
   if (editing) return <AssemblyEditor key={`${editing.id}-${editorSession}`} document={editing} documents={documents} assets={library.assets.data ?? []} mcpStatus={library.mcp.data}
-    active={active} onOpenWindow={detached ? undefined : openWindow}
+    active={active} onOpenWindow={detached ? undefined : openWindow} registerWindowOpener={registerWindowOpener}
     assetsLoading={library.assets.isPending} assetsError={library.assets.error?.message} saving={library.save.isPending} importing={library.importMedia.isPending}
     onReloadAssets={() => void library.assets.refetch()} onImport={(kind) => library.importMedia.mutateAsync(kind)}
     onSave={async (content, expectedRevision) => { const saved = await library.save.mutateAsync({ id: editing.id, projectId, content, expectedRevision }); setEditing(saved); return saved }}
@@ -144,5 +175,10 @@ export function AssemblyLibrary({ projectId, onDirty, onNotice, active = true, d
       <label>工程名称<Input autoFocus maxLength={150} {...form.register('title')} /></label><label>集数（可留空）<Input inputMode="numeric" {...form.register('episode')} /></label>
       {(form.formState.errors.title || form.formState.errors.episode) && <p role="alert" className="field-error">{form.formState.errors.title?.message ?? form.formState.errors.episode?.message}</p>}
       <Button type="submit" disabled={library.save.isPending}>创建工程</Button></form></Dialog>}
+    {choosingWindow && <Dialog title="在新窗口打开排片工程" onClose={() => { if (!openingWindow) setChoosingWindow(false) }}>
+      <div className="assembly-form">{documents.map((document) => <Button key={document.id} variant="outline" disabled={openingWindow} onClick={() => {
+        void openWindow(document).catch((error: unknown) => onNotice(error instanceof Error ? error.message : '打开独立剪辑窗口失败'))
+      }}><FontAwesomeIcon icon={faArrowUpRightFromSquare} />{document.title}</Button>)}</div>
+    </Dialog>}
   </section>
 }

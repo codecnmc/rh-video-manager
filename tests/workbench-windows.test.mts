@@ -7,6 +7,7 @@ import { WorkbenchWindows } from '../src/main/bootstrap/workbench-windows.ts'
 import { registerWorkbenchWindows } from '../src/main/ipc/register-workbench-windows.ts'
 import type { DesktopHandle } from '../src/main/ipc/handle.ts'
 import type { WorkbenchPresence, WorkbenchWindowContext, WorkbenchWindowTarget } from '../src/shared/contracts/workbench-windows.ts'
+import { workbenchWindowTargetSchema } from '../src/shared/contracts/workbench-windows.ts'
 import { windowPeers } from '../src/renderer/src/features/workbench/window-presence.ts'
 import { WorkbenchDatabase, SqliteWorkspaceRepository } from '../src/main/infrastructure/database/workspace-repository.ts'
 import { SqlitePreferencesRepository } from '../src/main/infrastructure/database/preferences-repository.ts'
@@ -162,6 +163,33 @@ test('多个窗口共享工作区修订，旧快照不能覆盖已保存的另�
   } finally { f.database.close() }
 })
 
+test('剧本库可以独立开窗并携带浏览位置，不改变主窗口项目或工作区修订', async () => {
+  const f = await fixture()
+  try {
+    f.settings.save({ lastProjectId: f.projects[1]!.id })
+    const before = await f.workspace.load()
+    const target: WorkbenchWindowTarget = { projectId: f.projects[0]!.id, view: 'script-library', boardId: null,
+      scriptId: randomUUID(), scriptUnassigned: true }
+    await f.invoke('workbench:open-window', target)
+    assert.deepEqual(await f.context(2), { ...target, detached: true })
+    assert.equal((await f.context()).projectId, f.projects[1]!.id)
+    assert.deepEqual(await f.workspace.load(), before)
+    await f.invoke('workbench:open-window', { projectId: null, view: 'script-library', boardId: null })
+    assert.equal((await f.context(3)).view, 'script-library')
+    await assert.rejects(f.invoke('workbench:open-window', { ...target, projectId: randomUUID() }), /项目不存在/)
+  } finally { f.database.close() }
+})
+
+test('新窗口目标严格限制页面和跨页面定位字段', () => {
+  const target = { projectId: randomUUID(), view: 'script-library', boardId: null, scriptId: randomUUID(), scriptUnassigned: false }
+  assert.equal(workbenchWindowTargetSchema.safeParse(target).success, true)
+  assert.equal(workbenchWindowTargetSchema.safeParse({ ...target, boardId: randomUUID() }).success, false)
+  assert.equal(workbenchWindowTargetSchema.safeParse({ ...target, scriptId: 'invalid' }).success, false)
+  for (const view of ['video', 'image-generation', 'settings', 'assembly']) {
+    assert.equal(workbenchWindowTargetSchema.safeParse({ ...target, view }).success, false)
+  }
+})
+
 test('主窗口与额外窗口均报告同草稿占用，查看和未保存编辑分开统计', async () => {
   const f = await fixture()
   try {
@@ -214,7 +242,7 @@ test('占用变化才广播，窗口关闭或崩溃不留下占用记录', async
   const windows = new WorkbenchWindows(async (onCreated) => { onCreated(window) }, () => { changes += 1 })
   const target: WorkbenchWindowTarget = { projectId: randomUUID(), view: 'video', boardId: null }
   await windows.open(target)
-  const current: WorkbenchPresence = { ...target, draftId: randomUUID(), dirty: false }
+  const current: WorkbenchPresence = { ...target, view: 'video', draftId: randomUUID(), dirty: false }
   windows.report(2, current)
   windows.report(2, current)
   assert.equal(changes, 1)

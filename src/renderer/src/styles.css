@@ -56,6 +56,13 @@ svg { flex-shrink: 0; }
 .button-size-icon { width: 32px; height: 32px; min-height: 32px; padding: 0; }
 .button-size-small { min-height: 32px; padding: 3px 8px; font-size: 14px; }
 .button-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.ui-context-menu { z-index: 150; min-width: 210px; max-width: calc(100vw - 16px); max-height: var(--radix-context-menu-content-available-height); overflow: auto; padding: 5px; background: white; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 6px 24px #24333724; }
+.ui-context-menu-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 34px; border-radius: 3px; font-size: 13px; color: #263b41; outline: none; cursor: default; user-select: none; }
+.ui-context-menu-item > svg { width: 16px; }
+.ui-context-menu-item[data-highlighted] { background: var(--primary-soft); }
+.ui-context-menu-item[data-disabled] { opacity: 0.4; pointer-events: none; }
+.ui-context-menu-item.destructive { color: #b34343; }
+.ui-context-menu-separator { height: 1px; margin: 4px 0; background: var(--border); }
 .app-shell { position: fixed; inset: 0; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
 .window-chrome { height: 38px; flex: 0 0 38px; display: flex; align-items: center; background: #f7f9fa; border-bottom: 1px solid var(--border); user-select: none; }
 .window-drag-area { -webkit-app-region: drag; flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 10px; padding: 0 16px; }
@@ -611,6 +618,16 @@ td small { display: block; color: #b18b4d; font-size: 14px; }
 .ui-confirmation { z-index: 201; }
 .ui-dialog-overlay:has(+ .ui-confirmation) { z-index: 200; }
 .ui-confirmation-message { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 16px; color: var(--muted); }
+.window-close-overlay { z-index: 300; }
+.dialog.window-close-confirmation { z-index: 301; width: min(480px, calc(100vw - 40px)); }
+.window-close-confirmation .dialog-heading { margin-bottom: 12px; }
+.window-close-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.window-close-heading > svg { width: 20px; height: 20px; color: #b88728; }
+.window-close-description { color: var(--muted); line-height: 1.7; overflow-wrap: anywhere; }
+.window-close-warning { margin-top: 18px; padding: 12px 0 12px 14px; border-left: 3px solid #d5a343; }
+.window-close-warning strong { font-size: 14px; font-weight: 600; }
+.window-close-warning p { margin-top: 5px; color: var(--muted); line-height: 1.7; overflow-wrap: anywhere; }
+.window-close-confirmation .dialog-actions .button { min-width: 94px; }
 .ui-disclosure-trigger { display: flex; width: 100%; padding: 8px 0; border: 0; background: transparent; text-align: left; font-weight: 600; }
 .ui-suggestion-input { position: relative; min-width: 0; }
 .ui-suggestion-input > input { padding-right: 36px; }

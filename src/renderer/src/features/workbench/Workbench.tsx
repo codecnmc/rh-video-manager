@@ -22,7 +22,7 @@ import { usePreviews } from './use-previews'
 import { resolveSavedDraft, useWorkbenchUi } from './workbench-store'
 import { PreviewPanel } from './components/PreviewPanel'
 import { VideoInspector } from '@/features/video'
-import { ScriptLibrary } from '@/features/scripts'
+import { ScriptLibrary, useScriptLibraryUi } from '@/features/scripts'
 import { AssemblyLibrary } from '@/features/assembly'
 import { ImageGenerationLibrary, useImageGenerationUi } from '@/features/image-generation'
 import { WorkbenchTasks } from './components/WorkbenchTasks'
@@ -35,17 +35,18 @@ import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { VideoDraftList } from './components/VideoDraftList'
 import { reorderDraftSubset } from './draft-order'
 import { desktop, unwrap } from '@/shared/lib/desktop'
-import type { WorkbenchWindowContext } from '@contracts/workbench-windows'
+import type { WorkbenchWindowContext, WorkbenchWindowTarget } from '@contracts/workbench-windows'
 import { useWorkbenchWindows } from './use-workbench-windows'
+import { SidebarWindowMenu } from './components/SidebarWindowMenu'
 
 // 保留隐藏页的未保存会话，但不让工作台轮询和其他页面输入穿透到剪辑树。
-const RetainedAssemblyPage = memo(function RetainedAssemblyPage({ projectId, active, onDirty, onNotice }: {
-  projectId: string | null; active: boolean
+const RetainedAssemblyPage = memo(function RetainedAssemblyPage({ projectId, active, windowRequest, onDirty, onNotice }: {
+  projectId: string | null; active: boolean; windowRequest: number
   onDirty: (projectId: string | null, value: boolean) => void; onNotice: (message: string) => void
 }) {
   const reportDirty = useCallback((value: boolean) => onDirty(projectId, value), [projectId, onDirty])
   return <div className="assembly-page-host" hidden={!active}>
-    <AssemblyLibrary projectId={projectId} active={active} onDirty={reportDirty} onNotice={onNotice} />
+    <AssemblyLibrary projectId={projectId} active={active} windowRequest={windowRequest} onDirty={reportDirty} onNotice={onNotice} />
   </div>
 })
 
@@ -67,6 +68,11 @@ export function Workbench() {
       useWorkbenchUi.getState().selectProject(initial.projectId)
       useWorkbenchUi.getState().setView(initial.view)
       if (initial.boardId) useImageGenerationUi.getState().selectBoard(initial.projectId, initial.boardId)
+      if (initial.view === 'script-library') {
+        const scripts = useScriptLibraryUi.getState()
+        scripts.setUnassigned(initial.projectId, initial.scriptUnassigned ?? false)
+        scripts.selectDocument(initial.scriptUnassigned ? null : initial.projectId, initial.scriptId ?? null)
+      }
       setContext(initial)
     }).catch((failure: unknown) => { if (active) setError(failure instanceof Error ? failure.message : '无法恢复工作台位置') })
     return () => { active = false }
@@ -79,6 +85,9 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
   const [guideOpen, setGuideOpen] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [assemblyProjects, setAssemblyProjects] = useState<Array<string | null>>([])
+  const [assemblyWindowRequests, setAssemblyWindowRequests] = useState<Record<string, number>>({})
+  const [openingSidebarWindow, setOpeningSidebarWindow] = useState(false)
+  const sidebarWindowPending = useRef(false)
   const [assemblyDirty, setAssemblyDirty] = useState<Record<string, boolean>>({})
   const onAssemblyDirty = useCallback((projectId: string | null, value: boolean) => {
     const key = projectId ?? 'public'
@@ -144,6 +153,31 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
     try {
       unwrap(await desktop().openWorkbenchWindow({ projectId: project.id, view: 'video', boardId: null }))
     } catch (failure) { setNotice(failure instanceof Error ? failure.message : '独立窗口打开失败') }
+  }
+
+  async function openSidebarWindow(view: WorkbenchWindowTarget['view'] | 'assembly') {
+    const projectId = project?.id ?? null
+    if (view === 'assembly') {
+      // 通过保留页的既有保存/锁定流程开窗，不能绕过隐藏编辑器的未保存修改。
+      setAssemblyProjects((current) => current.includes(projectId) ? current : [...current, projectId])
+      setAssemblyWindowRequests((current) => ({ ...current, [projectId ?? 'public']: (current[projectId ?? 'public'] ?? 0) + 1 }))
+      return
+    }
+    if (sidebarWindowPending.current) return
+    sidebarWindowPending.current = true
+    setOpeningSidebarWindow(true)
+    try {
+      const target: WorkbenchWindowTarget = { projectId, view, boardId: view === 'image-generation' ? selectedBoardId : null }
+      if (view === 'script-library') {
+        const scripts = useScriptLibraryUi.getState()
+        target.scriptUnassigned = scripts.unassignedByProject[projectId ?? 'unassigned'] ?? false
+        const scope = target.scriptUnassigned ? null : projectId
+        target.scriptId = scripts.selectedByScope[scope ?? 'unassigned'] ?? null
+      }
+      // 新窗口只读取已保存内容，不切换本窗口，也不改变本地脏表单。
+      unwrap(await desktop().openWorkbenchWindow(target))
+    } catch (failure) { setNotice(failure instanceof Error ? failure.message : '独立窗口打开失败') }
+    finally { sidebarWindowPending.current = false; setOpeningSidebarWindow(false) }
   }
 
   useEffect(() => {
@@ -349,11 +383,11 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
         <SelectField id="project-switch" disabled={data.projects.length === 0} value={project?.id ?? ''} onChange={(event) => navigate(() => { ui.selectProject(event.target.value); setGroupFilter('all'); setSearch(''); setSelectedDrafts([]); setActiveTask(null); setGroupDialog(null) })}>
           {!data.projects.length && <SelectOption value="">暂无项目</SelectOption>}{data.projects.map((item) => <SelectOption key={item.id} value={item.id}>{item.name}</SelectOption>)}</SelectField></div>
       <div className="primary-navigation">
-        <Button data-guide-target="video" variant="unstyled" title="视频生成" aria-label="视频生成" className={`nav-item ${ui.view === 'video' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('video'))}><FontAwesomeIcon icon={faVideo} /><span>视频生成</span></Button>
-        <Button variant="unstyled" title="排片剪辑库" aria-label="排片剪辑库" className={`nav-item ${ui.view === 'assembly' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('assembly'))}><FontAwesomeIcon icon={faClapperboard} /><span>排片剪辑库</span></Button>
-        <Button data-guide-target="image-generation" variant="unstyled" title="素材生成" aria-label="素材生成" className={`nav-item ${ui.view === 'image-generation' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('image-generation'))}><FontAwesomeIcon icon={faImage} /><span>素材生成</span></Button>
+        <SidebarWindowMenu disabled={openingSidebarWindow} onOpen={() => void openSidebarWindow('video')}><Button data-guide-target="video" variant="unstyled" title="视频生成 · 右键可在新窗口打开" aria-label="视频生成" className={`nav-item ${ui.view === 'video' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('video'))}><FontAwesomeIcon icon={faVideo} /><span>视频生成</span></Button></SidebarWindowMenu>
+        <SidebarWindowMenu onOpen={() => void openSidebarWindow('assembly')}><Button variant="unstyled" title="排片剪辑库 · 右键可在新窗口打开" aria-label="排片剪辑库" className={`nav-item ${ui.view === 'assembly' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('assembly'))}><FontAwesomeIcon icon={faClapperboard} /><span>排片剪辑库</span></Button></SidebarWindowMenu>
+        <SidebarWindowMenu disabled={openingSidebarWindow} onOpen={() => void openSidebarWindow('image-generation')}><Button data-guide-target="image-generation" variant="unstyled" title="素材生成 · 右键可在新窗口打开" aria-label="素材生成" className={`nav-item ${ui.view === 'image-generation' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('image-generation'))}><FontAwesomeIcon icon={faImage} /><span>素材生成</span></Button></SidebarWindowMenu>
         <Button data-guide-target="assets" variant="unstyled" title="素材库" aria-label="素材库" className={`nav-item ${ui.view === 'assets' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('assets'))}><FontAwesomeIcon icon={faImages} /><span>素材库</span></Button>
-        <Button variant="unstyled" title="剧本库" aria-label="剧本库" className={`nav-item ${ui.view === 'script-library' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('script-library'))}><FontAwesomeIcon icon={faBookOpen} /><span>剧本库</span></Button>
+        <SidebarWindowMenu disabled={openingSidebarWindow} onOpen={() => void openSidebarWindow('script-library')}><Button variant="unstyled" title="剧本库 · 右键可在新窗口打开" aria-label="剧本库" className={`nav-item ${ui.view === 'script-library' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('script-library'))}><FontAwesomeIcon icon={faBookOpen} /><span>剧本库</span></Button></SidebarWindowMenu>
         {(extensions.data ?? []).filter((extension) => extension.enabled).flatMap((extension) => (extension.manifest.contributes.pages ?? []).map((page) =>
           <Button variant="unstyled" key={`${extension.id}/${page.id}`} title={`${extension.manifest.displayName} · ${page.title}`} className={`nav-item ${ui.view === 'extension-page' && extensionSelection?.pageId === page.id ? 'active' : ''}`} onClick={() => navigate(() => { setExtensionSelection({ extensionId: extension.id, pageId: page.id }); ui.setView('extension-page') })}><FontAwesomeIcon icon={faPuzzlePiece} /><span>{page.title}</span></Button>))}
       </div>
@@ -369,7 +403,7 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
     <main className="workspace-content">{ui.view !== 'image-generation' && workspaceHeader}
       {assemblyProjects.filter((id) => id === null || data.projects.some((item) => item.id === id)).map((id) => {
         const active = ui.view === 'assembly' && id === (project?.id ?? null)
-        return <RetainedAssemblyPage key={id ?? 'public'} projectId={id} active={active} onDirty={onAssemblyDirty} onNotice={setNotice} />
+        return <RetainedAssemblyPage key={id ?? 'public'} projectId={id} active={active} windowRequest={assemblyWindowRequests[id ?? 'public'] ?? 0} onDirty={onAssemblyDirty} onNotice={setNotice} />
       })}
       {ui.view === 'accounts' ? <AccountsPanel key={`accounts-${editorVersion}`} onDirty={onDirty} onNotice={setNotice} renderWorkflows={(account, onWorkflowDirty) => <WorkflowsPanel accountId={account.id} onDirty={onWorkflowDirty} onNotice={setNotice} />} />
         : ui.view === 'workflows' ? <WorkflowsPanel key={`workflows-${editorVersion}`} onDirty={onDirty} onNotice={setNotice} />

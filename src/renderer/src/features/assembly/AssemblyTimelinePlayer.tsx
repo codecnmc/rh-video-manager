@@ -166,7 +166,8 @@ function useAssemblyPlayback({ version, seekRequest, onPosition, onNotice, activ
         if (element.ended) continue
         // 常规漂移只微调速率；反复 pause/play 会把主线程调度误差放大成周期性卡顿。
         const drift = element.currentTime - sourceTime
-        element.playbackRate = drift > 0.05 ? 0.97 : drift < -0.05 ? 1.03 : 1
+        // 带原声的片段保持原速，避免保调变速损伤听感；静音画面仍可微调同步。
+        element.playbackRate = item.clip.originalAudio ? 1 : drift > 0.05 ? 0.97 : drift < -0.05 ? 1.03 : 1
         // play() 允许浏览器继续填充缓冲；等待期间不能 pause() 中止这个请求。
         if (element.paused && !starting.current.has(element)) {
           starting.current.add(element)

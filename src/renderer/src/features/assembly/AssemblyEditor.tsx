@@ -37,6 +37,7 @@ import { AssemblyExportSettings, AssemblyExportProgressView } from './AssemblyEx
 
 interface EditorProps {
   active?: boolean; onOpenWindow?: ((document: AssemblyDocument) => Promise<void>) | undefined
+  registerWindowOpener?: (action: (() => Promise<void>) | null) => void
   document: AssemblyDocument; documents: AssemblyDocument[]; assets: Asset[]; assetsLoading: boolean; assetsError?: string | undefined
   mcpStatus?: AssetMcpStatus | undefined
   saving: boolean; importing: boolean; onReloadAssets: () => void; onImport: (kind: 'video' | 'audio') => Promise<Asset[]>
@@ -115,7 +116,8 @@ export function AssemblyEditor(props: EditorProps) {
     void editor.save()
   }
   async function detach() {
-    if (locked || !props.onOpenWindow) return
+    if (!props.onOpenWindow) return
+    if (locked) { props.onNotice('剪辑正在读取、保存或导出，请稍候再打开独立窗口'); return }
     if (externalChanges) { props.onNotice('请先载入最新修订，再打开独立窗口'); return }
     if (!assemblyContentSchema.safeParse(content).success) { props.onNotice('请先修正剪辑内容后再打开独立窗口'); return }
     if (editor.dirty && !await confirmAction('保存当前修改，并在独立窗口继续剪辑？主窗口将锁定此项目的剪辑。')) return
@@ -126,6 +128,11 @@ export function AssemblyEditor(props: EditorProps) {
     } catch (error) { props.onNotice(error instanceof Error ? error.message : '打开独立剪辑窗口失败') }
     finally { setOpeningWindow(false) }
   }
+  useEffect(() => {
+    // 父级菜单复用当前编辑器的实时校验和保存确认，不读取过期工程快照。
+    props.registerWindowOpener?.(detach)
+    return () => props.registerWindowOpener?.(null)
+  })
   function openDialog(mode: 'metadata' | 'version') {
     setDialog(mode); details.reset({ name: mode === 'metadata' ? content.title : `${version.name} 副本`, episode: String(content.episode ?? '') }); setDialogError('')
   }

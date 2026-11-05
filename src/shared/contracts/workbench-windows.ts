@@ -2,9 +2,12 @@ import { z } from 'zod'
 
 export const workbenchWindowTargetSchema = z.strictObject({
   projectId: z.string().uuid().nullable(),
-  view: z.enum(['video', 'image-generation']),
-  boardId: z.string().uuid().nullable()
-}).refine((target) => target.view === 'image-generation' || target.boardId === null, '视频窗口不能指定素材画布')
+  view: z.enum(['video', 'image-generation', 'script-library']),
+  boardId: z.string().uuid().nullable(),
+  scriptId: z.string().uuid().nullable().optional(),
+  scriptUnassigned: z.boolean().optional()
+}).refine((target) => target.view === 'image-generation' || target.boardId === null, '仅素材生成窗口可以指定素材画布')
+  .refine((target) => target.view === 'script-library' || target.scriptId === undefined && target.scriptUnassigned === undefined, '仅剧本库窗口可以指定剧本位置')
 
 export type WorkbenchWindowTarget = z.infer<typeof workbenchWindowTargetSchema>
 export type WorkbenchWindowContext = WorkbenchWindowTarget & { detached: boolean }

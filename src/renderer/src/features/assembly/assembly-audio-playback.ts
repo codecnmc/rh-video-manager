@@ -43,9 +43,9 @@ export class AssemblyAudioPlayback {
     if (!playing) { element.pause(); return }
     const ahead = element.currentTime - sourceTime
     if (ahead > 0.35) { element.pause(); return }
-    // 连续播放只微调预览速率，不反复 seek；MP3 定位量化误差不能形成循环。
-    // 该速率不写入工程或导出，音高由媒体元素的 preservesPitch 保持。
-    element.playbackRate = ahead < -0.05 ? 1.02 : ahead > 0.05 ? 0.98 : 1
+    // 音乐保持原速，容忍小幅时钟误差；频繁保调变速会产生发颤和金属音。
+    // 定位仍只由主动跳转/循环负责，不能以反复 seek 替代变速校时。
+    element.playbackRate = 1
     if (!element.paused || this.pending || this.failed) return
     this.pending = true
     const generation = this.generation

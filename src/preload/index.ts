@@ -3,8 +3,19 @@ import type { DesktopApi } from '../shared/contracts/desktop'
 import type { PreviewEvent } from '../shared/contracts/preview'
 import { previewNotificationTargetSchema } from '../shared/contracts/preview'
 import { assemblyExportProgressSchema } from '../shared/contracts/assembly-export'
+import { windowClosePromptSchema } from '../shared/contracts/window-close'
 
 const api: DesktopApi = {
+  currentWindowClosePrompt: () => ipcRenderer.invoke('window:close-prompt-current'),
+  respondWindowClosePrompt: (input) => ipcRenderer.invoke('window:close-prompt-respond', input),
+  onWindowClosePrompt: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, input: unknown) => {
+      const parsed = windowClosePromptSchema.nullable().safeParse(input)
+      if (parsed.success) listener(parsed.data)
+    }
+    ipcRenderer.on('window:close-prompt', handler)
+    return () => ipcRenderer.removeListener('window:close-prompt', handler)
+  },
   checkReleaseUpdate: () => ipcRenderer.invoke('updates:check'),
   openReleaseDownloads: () => ipcRenderer.invoke('updates:open-releases'),
   workbenchWindowContext: () => ipcRenderer.invoke('workbench:window-context'),

@@ -54,7 +54,7 @@ test('音频抢跑只暂停等待，不逐帧向回seek；主动跳转重新定�
   assert.equal(element.currentTime, 1)
 })
 
-test('落后只微调预览速率，元数据和seek未完成时不启动', () => {
+test('落后仍保持原速，元数据和seek未完成时不启动', () => {
   const playback = new AssemblyAudioPlayback()
   const { element } = fixture()
   element.readyState = 0
@@ -72,7 +72,7 @@ test('落后只微调预览速率，元数据和seek未完成时不启动', () =
   assert.equal(element.currentTime, 4)
   playback.sync(element, 5.5, true, 0, 1200, unexpectedError)
   assert.equal(element.currentTime, 4)
-  assert.equal(element.playbackRate, 1.02)
+  assert.equal(element.playbackRate, 1)
 })
 
 test('过期启动不在暂停后发声，真实失败只报告一次直到重新播放', async () => {
@@ -194,8 +194,25 @@ test('播放时钟持续领先音频也不每秒重定位和重播音乐', async
   }
   assert.equal(seeks, 1)
   assert.equal(f.element.calls, 1)
-  assert.equal(f.element.playbackRate, 1.02)
+  assert.equal(f.element.playbackRate, 1)
   assert.equal(f.element.paused, false)
   playback.stop(f.element)
   assert.equal(f.element.playbackRate, 1)
+})
+
+test('小幅正负漂移不触发保调变速或重新启动音乐', async () => {
+  const playback = new AssemblyAudioPlayback()
+  const f = fixture()
+  playback.sync(f.element, 0, true, 1, 0, unexpectedError)
+  f.complete()
+  await settled()
+  for (const [index, drift] of [0.06, -0.06, 0.1, -0.1, 0].entries()) {
+    const time = index + 1
+    f.element.currentTime = time + drift
+    playback.sync(f.element, time, true, 1, time * 1000, unexpectedError)
+    assert.equal(f.element.playbackRate, 1)
+    assert.equal(f.element.currentTime, time + drift)
+    assert.equal(f.element.calls, 1)
+    assert.equal(f.element.paused, false)
+  }
 })

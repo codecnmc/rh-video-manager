@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, Notification } from 'electron'
+import { WindowClosePrompts } from './window-close-prompts'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
@@ -307,40 +308,69 @@ export async function initializeWorkbench(): Promise<void> {
   const skills = new BuiltinSkillService(new LocalBuiltinSkillFiles(join(app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources'), 'skills')))
   // 迁移过程中不能经窗口关闭或托盘退出中断数据库与文件的交接。
   let taskQuitConfirmed = false
+  let taskQuitPromptPending = false
+  const closePrompts = new WindowClosePrompts()
+  const closingWindows = new WeakSet<BrowserWindow>()
+  const confirmedWindows = new WeakSet<BrowserWindow>()
   const hasGenerationActivity = () => imageGeneration?.hasPending() || imageGeneration?.hasActivity() ||
     generation?.hasStorageActivity() || production.hasStorageActivity()
-  const confirmTaskClose = (window: BrowserWindow | undefined, exiting: boolean) => {
+  const confirmTaskClose = async (window: BrowserWindow | undefined, exiting: boolean): Promise<boolean> => {
+    if (window && closePrompts.isReady(window.id) && !window.isDestroyed() && !window.webContents.isDestroyed() && !window.webContents.isLoading() && !window.webContents.isCrashed()) {
+      if (window.isMinimized()) window.restore()
+      window.show(); window.focus()
+      return closePrompts.request(window, exiting)
+    }
+    // 加载中或渲染器不可用时保留系统确认，不能因为定制界面不可用而放行退出。
     const options = {
       type: 'warning' as const, title: '仍有生成任务未结束',
       message: exiting ? '仍有排队、生成、下载或状态待核对的任务，确定退出软件？' : '仍有生成任务未结束，确定关闭此窗口？',
       detail: exiting
         ? '退出会中断本地上传、下载和任务监听。关闭软件不等于取消远端任务，可能已计费；重启后需核对状态，不会自动重新提交生成。'
         : '其他窗口仍保持打开，后台任务会继续。关闭此窗口不等于取消远端任务。',
-      buttons: ['继续等待', exiting ? '仍然退出' : '关闭此窗口'], defaultId: 0, cancelId: 0
+      buttons: ['继续等待', exiting ? '仍然退出' : '关闭此窗口'], defaultId: 0, cancelId: 0, noLink: true
     }
     return (window ? dialog.showMessageBoxSync(window, options) : dialog.showMessageBoxSync(options)) === 1
   }
   app.on('before-quit', (event) => {
     if (migration.isBusy()) { event.preventDefault(); return }
     if (taskQuitConfirmed || !hasGenerationActivity()) return
-    const window = BrowserWindow.getAllWindows().find((item) => !item.isDestroyed())
-    if (!confirmTaskClose(window, true)) { event.preventDefault(); return }
-    // 同一轮退出只确认一次；若未保存保护阻止关闭，下一次退出必须重新确认。
-    taskQuitConfirmed = true
+    event.preventDefault()
+    if (taskQuitPromptPending) return
+    taskQuitPromptPending = true
+    const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((item) => !item.isDestroyed())
+    void confirmTaskClose(window, true).then((confirmed) => {
+      if (!confirmed || migration.isBusy()) return
+      // 同一轮退出只确认一次；未保存保护阻止关闭后仍须重新确认。
+      taskQuitConfirmed = true
+      app.quit()
+    }).catch(() => {}).finally(() => { taskQuitPromptPending = false })
   })
   app.on('browser-window-created', (_event, window) => {
+    // UI 重新载入、崩溃或无响应后撤销旧确认；未重新握手前使用原生回退。
+    const disconnectClosePrompt = () => closePrompts.disconnect(window.id)
+    window.on('closed', disconnectClosePrompt)
+    window.on('unresponsive', disconnectClosePrompt)
+    window.webContents.on('did-start-loading', disconnectClosePrompt)
+    window.webContents.on('render-process-gone', disconnectClosePrompt)
     window.webContents.on('will-prevent-unload', (event) => {
       // 等未保存对话框处理完：未放弃修改才撤销本轮退出确认。
       setImmediate(() => { if (!event.defaultPrevented) taskQuitConfirmed = false })
     })
     window.on('close', (event) => {
       if (migration.isBusy()) { event.preventDefault(); return }
-      if (taskQuitConfirmed || !hasGenerationActivity()) return
+      if (taskQuitConfirmed || confirmedWindows.delete(window) || !hasGenerationActivity()) return
+      event.preventDefault()
+      if (closingWindows.has(window)) return
+      closingWindows.add(window)
       const exiting = BrowserWindow.getAllWindows().filter((item) => !item.isDestroyed()).length <= 1
-      if (!confirmTaskClose(window, exiting)) { event.preventDefault(); return }
-      if (exiting) {
-        taskQuitConfirmed = true
-      }
+      void confirmTaskClose(window, exiting).then((confirmed) => {
+        if (!confirmed || window.isDestroyed() || migration.isBusy()) return
+        const nowExiting = BrowserWindow.getAllWindows().filter((item) => !item.isDestroyed()).length <= 1
+        if (nowExiting !== exiting) { closingWindows.delete(window); window.close(); return }
+        if (exiting) taskQuitConfirmed = true
+        else confirmedWindows.add(window)
+        window.close()
+      }).catch(() => {}).finally(() => { closingWindows.delete(window) })
     })
   })
   const assemblyWindows = new AssemblyWindows((onCreated) => createWindow({ assembly: true, onCreated }), () => {
@@ -356,7 +386,7 @@ export async function initializeWorkbench(): Promise<void> {
   registerWorkbench(workspace, previews, allowedMediaUrl, accounts, workflows, references, library, mcp, extensions, production, generation,
     (media) => samplingFiles.forDownload(media), (id) => diagnostics.read(id), { library: personalLibrary, settings, pages: extensionPages, assembly, assemblyExport,
       assemblyRenderer: (ffmpeg, ffprobe) => new FfmpegAssemblyRenderer(ffmpeg, ffprobe, assemblyFontDirectory),
-      mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows })
+      mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows, closePrompts })
   imageGeneration.restore()
   generation.restore()
   try {

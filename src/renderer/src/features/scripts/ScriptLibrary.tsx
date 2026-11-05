@@ -12,6 +12,7 @@ import { confirmAction } from '@/components/ui/confirmation'
 import { MarkdownEditor, MarkdownModeControl } from '@/shared/components/MarkdownEditor'
 import { usePreferences } from '@/features/settings'
 import { useScriptLibrary } from './use-script-library'
+import { useScriptLibraryUi } from './script-library-store'
 import './script-library.css'
 
 function DocumentEditor({ document, preferences, saving, onDirty, onSave, onTitleChange }: {
@@ -52,9 +53,10 @@ function DocumentEditor({ document, preferences, saving, onDirty, onSave, onTitl
 type ScriptLibraryProps = { projectId: string | null; onDirty: (dirty: boolean) => void; onNotice: (message: string) => void }
 
 export function ScriptLibrary(props: ScriptLibraryProps) {
-  const [unassigned, setUnassigned] = useState(false)
+  const unassigned = useScriptLibraryUi((state) => state.unassignedByProject[props.projectId ?? 'unassigned'] ?? false)
+  const setUnassigned = useScriptLibraryUi((state) => state.setUnassigned)
   const scope = unassigned ? null : props.projectId
-  return <ScopedScriptLibrary key={scope ?? 'unassigned'} {...props} scope={scope} onScopeChange={setUnassigned} />
+  return <ScopedScriptLibrary key={scope ?? 'unassigned'} {...props} scope={scope} onScopeChange={(value) => setUnassigned(props.projectId, value)} />
 }
 
 function ScopedScriptLibrary({ projectId, scope, onScopeChange, onDirty, onNotice }: ScriptLibraryProps & {
@@ -62,7 +64,9 @@ function ScopedScriptLibrary({ projectId, scope, onScopeChange, onDirty, onNotic
 }) {
   const library = useScriptLibrary(scope)
   const preferences = usePreferences()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selectedId = useScriptLibraryUi((state) => state.selectedByScope[scope ?? 'unassigned'] ?? null)
+  const selectDocument = useScriptLibraryUi((state) => state.selectDocument)
+  const setSelectedId = (id: string | null) => selectDocument(scope, id)
   const [draft, setDraft] = useState<SaveLibraryDocument | null>(null)
   const [search, setSearch] = useState('')
   const [dirty, setDirty] = useState(false)

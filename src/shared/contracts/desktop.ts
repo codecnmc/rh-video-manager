@@ -19,6 +19,9 @@ import type { ImageAccount, SaveImageAccount, ImageBoard, CreateImageBoard, Imag
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface DesktopApi {
+  currentWindowClosePrompt(): Promise<Result<import('./window-close').WindowClosePrompt | null>>
+  respondWindowClosePrompt(input: import('./window-close').WindowCloseDecision): Promise<Result<void>>
+  onWindowClosePrompt(listener: (prompt: import('./window-close').WindowClosePrompt | null) => void): () => void
   checkReleaseUpdate(): Promise<Result<import('./updates').ReleaseUpdate>>
   openReleaseDownloads(): Promise<Result<void>>
   workbenchWindowContext(): Promise<Result<import('./workbench-windows').WorkbenchWindowContext>>

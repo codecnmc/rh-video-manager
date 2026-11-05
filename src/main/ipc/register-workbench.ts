@@ -41,6 +41,7 @@ import type { BuiltinSkillService } from '../modules/skills'
 import type { ImageGenerationService } from '../modules/image-generation'
 import { registerImageGeneration } from './register-image-generation'
 import { registerWorkbenchWindows, type WorkbenchWindowHost } from './register-workbench-windows'
+import { registerWindowClose, type WindowClosePromptHost } from './register-window-close'
 
 export function registerWorkbench(workspace: WorkspaceService, previews: PreviewService, allowedUrl: (url: string) => boolean,
   accounts: AccountService, workflows: WorkflowService, references: ReferenceService, library: LibraryService, mcp: AssetMcpServer,
@@ -48,7 +49,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   prepareDownload: (media: PreviewMedia) => PreviewMedia = (media) => media,
   readTaskDiagnostics: (id: string) => string = () => { throw new Error('任务日志尚未配置') },
   personalLibrary?: { library: ScriptLibraryService; settings: SettingsService; pages: ExtensionPageService; assembly?: AssemblyService; assemblyExport?: AssemblyExportService; assemblyRenderer?: (ffmpeg: string, ffprobe: string) => AssemblyRenderer;
-    mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost }): void {
+    mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost; closePrompts?: WindowClosePromptHost }): void {
   const handle = <T>(channel: string, action: (input: unknown, window: BrowserWindow) => Promise<T>) => {
     ipcMain.handle(channel, async (event, input: unknown): Promise<Result<T>> => {
       const window = BrowserWindow.fromWebContents(event.sender)
@@ -67,6 +68,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
     })
   }
   handle('workspace:load', () => workspace.load())
+  if (personalLibrary?.closePrompts) registerWindowClose(handle, personalLibrary.closePrompts)
   handle('generation:schedule', (input) => generation.schedule(scheduleGenerationSchema.parse(input)))
   handle('workspace:save', (input) => workspace.save(saveWorkspaceSchema.parse(input)))
   handle('workspace:copy-video', (input) => workspace.copyVideoDraft(copyVideoDraftSchema.parse(input)))
