@@ -333,6 +333,29 @@ function TimelineAudio({ sound, start, position, playing, buffering, epoch, volu
   const source = useRef<MediaElementAudioSourceNode | null>(null)
   const reported = useRef(false)
   const playback = useRef(new AssemblyAudioPlayback())
+  const [audioSource, setAudioSource] = useState<string>()
+  useEffect(() => {
+    const controller = new AbortController()
+    const element = audio.current
+    let objectUrl: string | undefined
+    reported.current = false
+    setAudioSource(undefined)
+    // 使用本地 Blob 提供可随机定位的音频源，避免自定义协议的流式读取回到文件头。
+    void fetch(mediaSource(sound.assetId!), { signal: controller.signal }).then(async (response) => {
+      if (!response.ok) throw new Error('声音读取失败')
+      const blob = await response.blob()
+      if (controller.signal.aborted) return
+      objectUrl = URL.createObjectURL(blob)
+      setAudioSource(objectUrl)
+    }).catch(() => {
+      if (!controller.signal.aborted && !reported.current) { reported.current = true; onNotice(`声音素材无法读取：${sound.title}`) }
+    })
+    return () => {
+      controller.abort()
+      if (element) { playback.current.stop(element); element.removeAttribute('src'); element.load() }
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [sound.assetId])
   useEffect(() => {
     if (!context || !audio.current) return
     source.current ??= context.createMediaElementSource(audio.current)
@@ -349,7 +372,7 @@ function TimelineAudio({ sound, start, position, playing, buffering, epoch, volu
     const sourceTime = (sound.sourceIn ?? 0) + local
     if (local < 0 || local >= sound.duration) { playback.current.stop(element); return }
     playback.current.sync(element, sourceTime, playing && gain > 0, `${epoch}:${start}:${sound.sourceIn ?? 0}:${sound.duration}`, performance.now(), () => {
-      if (!reported.current) { reported.current = true; onNotice(`声音无法预览：${sound.title}`) }
+      if (!reported.current) { reported.current = true; onNotice(`声音无法同步到时间轴，请检查素材后重试：${sound.title}`) }
     }, buffering)
   }
   useEffect(() => { synchronize.current() }, [position, start, playing, buffering, epoch, sound.sourceIn, sound.duration, sound.fadeIn, sound.fadeOut, gain, volume, context])
@@ -357,5 +380,5 @@ function TimelineAudio({ sound, start, position, playing, buffering, epoch, volu
     const element = audio.current
     return () => { if (element) playback.current.stop(element) }
   }, [])
-  return <audio ref={audio} crossOrigin="anonymous" src={mediaSource(sound.assetId!)} preload="auto" onLoadedMetadata={(event) => { event.currentTarget.preservesPitch = true; synchronize.current() }} onCanPlay={() => synchronize.current()} onSeeked={() => synchronize.current()} onError={() => { if (!reported.current) { reported.current = true; onNotice(`声音素材不可用：${sound.title}`) } }} />
+  return <audio ref={audio} src={audioSource} preload="auto" onLoadedMetadata={(event) => { event.currentTarget.preservesPitch = true; synchronize.current() }} onCanPlay={() => synchronize.current()} onSeeked={() => synchronize.current()} onError={() => { if (!reported.current) { reported.current = true; onNotice(`声音素材不可用：${sound.title}`) } }} />
 }
