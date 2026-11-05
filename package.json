@@ -1,6 +1,6 @@
 {
   "name": "ai-video-workbench",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "license": "MIT",
   "description": "模块化 AI 视频制作桌面工作台",
