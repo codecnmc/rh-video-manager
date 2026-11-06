@@ -100,7 +100,7 @@ function useAssemblyPlayback({ version, seekRequest, onPosition, onNotice, activ
       const item = entries[clipIndex]
       if (!item) return
       const sourceTime = item.clip.inPoint + Math.max(0, Math.min(next - item.start, item.end - item.start))
-      preparation.current.prepare(element, sourceTime)
+      preparation.current.seek(element, sourceTime)
     })
   }
   function stepFrame(delta: number) {
@@ -118,7 +118,9 @@ function useAssemblyPlayback({ version, seekRequest, onPosition, onNotice, activ
   function preparationOnMetadata(element: HTMLVideoElement, clipIndex: number) {
     const item = latest.current.entries[clipIndex]
     if (!item) return
-    preparation.current.prepare(element, item.clip.inPoint + Math.max(0, Math.min(clock.current - item.start, item.end - item.start)))
+    const sourceTime = item.clip.inPoint + Math.max(0, Math.min(clock.current - item.start, item.end - item.start))
+    if (requested.current) preparation.current.prepare(element, sourceTime)
+    else preparation.current.seek(element, sourceTime)
   }
   useEffect(() => { stop(); preparation.current.reset(); publish(0) }, [version.id, layout])
   useEffect(() => { if (!pageActive) stop() }, [pageActive])
@@ -233,7 +235,7 @@ function useAssemblyPlayback({ version, seekRequest, onPosition, onNotice, activ
       if (!item || element.readyState < 1) continue
       const visible = position >= item.start && position < item.end
       const sourceTime = item.clip.inPoint + Math.max(0, Math.min(position - item.start, item.end - item.start))
-      if (!requested.current) preparation.current.prepare(element, sourceTime)
+      if (!requested.current) preparation.current.seek(element, sourceTime)
       let gain = 1
       if (isOverlappingTransition(item.clip.transition?.kind)) gain = Math.min(gain, Math.max(0, (position - item.start) / item.clip.transition!.duration))
       const next = entries[clipIndex + 1]
@@ -304,6 +306,9 @@ export function AssemblyTimelinePlayer(props: PlaybackProps) {
           {item.clip.visual ? <AssemblyGeneratedVisual visual={item.clip.visual} canvas={canvas} height={frame.height} opacity={1} layer={0} /> : item.clip.assetId && <video ref={videoRefs[clipIndex]} src={mediaSource(item.clip.assetId)} preload="auto" playsInline muted={!visible || !item.clip.originalAudio || !!version.tracks?.some((track) => track.solo)}
           style={{ objectFit: canvas.fit, filter: !originalColor && hasClipColor(item.clip.color) ? `url(#${prefix}-${item.clip.id})` : 'none', transform: item.clip.transform ? `translate(${-item.clip.transform.x * (item.clip.transform.scale - 1) * frame.width / 2}px, ${-item.clip.transform.y * (item.clip.transform.scale - 1) * frame.height / 2}px) scale(${item.clip.transform.scale})` : 'none' }}
           onLoadedMetadata={(event) => { preparationOnMetadata(event.currentTarget, clipIndex) }}
+          // 连续拖动可能发生在上次 seek 尚未结束时；暂停时没有播放帧轮询，完成后需补定位到最新游标。
+          onSeeked={(event) => { preparationOnMetadata(event.currentTarget, clipIndex) }}
+          onLoadedData={(event) => { preparationOnMetadata(event.currentTarget, clipIndex) }}
           onError={() => { stop(); onNotice(`视频不可用或格式不受支持：${item.clip.title}`) }} />}
           {frameMask && <AssemblyRaster request={{ kind: 'mask', width: canvas.width, height: canvas.height, mask: frameMask }} />}
         </div>

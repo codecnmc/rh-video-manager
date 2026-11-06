@@ -5,6 +5,19 @@ export class AssemblyVideoPreparation {
 
   reset() { this.positioned = new WeakSet() }
 
+  seek(element: TimelineVideo, sourceTime: number): boolean {
+    if (element.readyState < 1) return false
+    const target = Number.isFinite(element.duration) ? Math.min(sourceTime, element.duration) : sourceTime
+    // 主动拖动必须覆盖正在进行的定位，不能复用播放预载的“一次准备”标记。
+    if (Math.abs(element.currentTime - target) > 0.001) {
+      element.currentTime = target
+      this.positioned.add(element)
+      return false
+    }
+    this.positioned.add(element)
+    return !element.seeking
+  }
+
   prepare(element: TimelineVideo, sourceTime: number): boolean {
     if (element.readyState < 1 || element.seeking) return false
     if (this.positioned.has(element)) return true

@@ -2,6 +2,34 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { AssemblyVideoPreparation, shouldHoldAssemblyVideo, canAdvanceAssemblyVideo } from '../src/renderer/src/features/assembly/assembly-video-playback.ts'
 
+test('暂停拖动覆盖预载标记和未结束的旧定位，最后一段采用最新目标', () => {
+  const preparation = new AssemblyVideoPreparation()
+  const element = { readyState: 2, seeking: false, ended: false, currentTime: 0, duration: 15.083333 }
+  preparation.prepare(element, 0)
+  element.seeking = true
+  assert.equal(preparation.seek(element, 12), false)
+  assert.equal(element.currentTime, 12)
+  preparation.seek(element, 7.058333)
+  assert.equal(element.currentTime, 7.058333)
+  element.seeking = false
+  assert.equal(preparation.seek(element, 7.058333), true)
+  // 解码载入后若仍落在旧帧，媒体事件必须重新校正，不能被 positioned 拦住。
+  element.currentTime = 0
+  preparation.seek(element, 7.058333)
+  assert.equal(element.currentTime, 7.058333)
+})
+
+test('主动逐帧定位保留小于旧准备阈值的位移，未加载元数据后可重试', () => {
+  const preparation = new AssemblyVideoPreparation()
+  const element = { readyState: 0, seeking: false, ended: false, currentTime: 0, duration: 15 }
+  assert.equal(preparation.seek(element, 3), false)
+  assert.equal(element.currentTime, 0)
+  element.readyState = 2
+  preparation.seek(element, 3)
+  preparation.seek(element, 3 + 1 / 60)
+  assert.equal(element.currentTime, 3 + 1 / 60)
+})
+
 test('片段只定位一次，缓冲恢复不反复向回定位', () => {
   const preparation = new AssemblyVideoPreparation()
   const element = { readyState: 2, seeking: false, ended: false, currentTime: 0, duration: 10 }
