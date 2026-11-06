@@ -487,6 +487,27 @@ td small { display: block; color: #b18b4d; font-size: 14px; }
 .status-running { color: var(--primary); }
 .status-success { color: var(--success); }
 .status-failed { color: #bf5f5f; }
+.video-task-table { min-width: 1080px; }
+.video-task-table > thead > tr > th:nth-child(2) { width: 21%; }
+.video-task-table > thead > tr > th:nth-child(3) { width: 17%; }
+.video-task-table > thead > tr > th:nth-child(4) { width: 9%; }
+.video-task-table > thead > tr > th:nth-child(5) { width: 25%; }
+.video-task-table > thead > tr > th:nth-child(6) { width: 13%; }
+.video-task-table > thead > tr > th:nth-child(7) { width: 15%; }
+.queue-duration { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.queue-status-cell { white-space: normal; }
+.queue-status-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.queue-status-badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 4px; background: #f5f3ed; font-size: 12px; font-weight: 500; line-height: 1.5; }
+.queue-status-badge.status-success { background: #edf7f1; }
+.queue-status-badge.status-running { background: var(--primary-soft); }
+.queue-status-badge.status-failed { background: #fbefef; }
+.queue-status-badge.status-cancelled { color: var(--muted); background: #f1f4f5; }
+.queue-status-cell .queue-status-timing { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.queue-status-details { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.queue-status-details summary { cursor: pointer; width: fit-content; }
+.queue-status-details[open] { flex-basis: 100%; }
+.queue-status-details p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.queue-status-details summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .queue-empty { padding: 24px; color: #a0adb1; text-align: center; font-size: 14px; }
 .script-pane { flex: 1; min-height: 0; padding: 12px 24px; display: flex; flex-direction: column; }
 .script-pane .pane-toolbar { padding: 0 0 14px; }

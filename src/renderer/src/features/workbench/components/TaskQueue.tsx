@@ -14,6 +14,7 @@ import { summarizeQueue, queueStatus, canResolveTask } from '../queue-state'
 import { useTaskBatch } from '../use-task-batch'
 import { CheckboxField } from '@/components/ui/checkbox-field'
 import { TaskTiming } from './TaskTiming'
+import { TaskDuration } from './TaskDuration'
 
 const statusLabels = { unknown: '状态待确认', queued: '远端排队中', running: '生成中', success: '远端已完成', failed: '失败', cancelled: '已取消' }
 
@@ -77,17 +78,21 @@ export function TaskQueue({ tasks, projects, actions, loading, error, onReload, 
       <Button variant="outline" disabled={actionBusy || !chosen.every((task) => canResolveTask(task) && !task.localReservationReleasedAt)} onClick={() => void batch.run(chosen, 'release')}><FontAwesomeIcon icon={faUnlock} />仅解除占位</Button>
       <Button variant="ghost" disabled={actionBusy} onClick={() => batch.setSelected([])}>取消选择</Button></div>}
     {error && <p className="field-error" role="alert">{error}</p>}
-    <div className="queue-scroll"><Table className="task-table"><TableHeader><TableRow><TableHead scope="col" className="queue-selection"><CheckboxField aria-label="选择当前筛选下全部未结束任务" disabled={actionBusy || !selectable.length} checked={selectable.length > 0 && chosen.length === selectable.length} onChange={(event) => batch.setSelected(event.target.checked ? selectable.map((task) => task.id) : [])} /></TableHead><TableHead scope="col">任务 ID</TableHead><TableHead scope="col">项目 / 视频草稿</TableHead><TableHead scope="col">状态</TableHead><TableHead scope="col">预览</TableHead><TableHead scope="col">操作</TableHead></TableRow></TableHeader>
+    <div className="queue-scroll"><Table className="task-table video-task-table"><TableHeader><TableRow><TableHead scope="col" className="queue-selection"><CheckboxField aria-label="选择当前筛选下全部未结束任务" disabled={actionBusy || !selectable.length} checked={selectable.length > 0 && chosen.length === selectable.length} onChange={(event) => batch.setSelected(event.target.checked ? selectable.map((task) => task.id) : [])} /></TableHead><TableHead scope="col">任务 ID</TableHead><TableHead scope="col">项目 / 视频草稿</TableHead><TableHead scope="col">成片时长</TableHead><TableHead scope="col">状态</TableHead><TableHead scope="col">预览</TableHead><TableHead scope="col">操作</TableHead></TableRow></TableHeader>
       <TableBody>{visible.map((task) => {
         const project = projects.find((item) => item.id === task.projectId)
         const draft = project?.videoDrafts.find((item) => item.id === task.draftId)
         const terminal = ['success', 'failed', 'cancelled'].includes(queueStatus(task))
         return <TableRow key={task.id}><TableCell className="queue-selection"><CheckboxField aria-label={`选择任务 ${task.taskId || task.id}`} disabled={actionBusy || terminal || !task.taskId} checked={chosen.some((item) => item.id === task.id)} onChange={(event) => batch.setSelected((current) => event.target.checked ? [...current, task.id] : current.filter((id) => id !== task.id))} /></TableCell><TableCell className="task-id" title={task.taskId || task.id}>{task.taskId || '尚未取得远端 ID'}</TableCell><TableCell title={`${project?.name ?? '项目不可用'} / ${draft?.title ?? '草稿不可用'}`}>{draft?.title ?? '草稿不可用'}<small className="queue-project-name">{project?.name ?? '项目不可用'}</small></TableCell>
-          <TableCell><span className={`task-status status-${queueStatus(task)}`}>{task.manualCancellationConfirmedAt && task.remoteStatus !== 'success' && task.remoteStatus !== 'failed' ? '已取消·人工确认' : !terminal && task.cancelState === 'requested' ? '取消已受理·待确认' : statusLabels[task.remoteStatus]}</span>
-            {task.manualCancellationConfirmedAt && <small title={new Date(task.manualCancellationConfirmedAt).toLocaleString('zh-CN')}>最后远端状态：{statusLabels[task.remoteStatus]} · 非平台回执</small>}
-            <small title={task.notice || task.stage}>{task.notice || task.stage}</small>
-            <small><TaskTiming task={task} /></small>
-            {task.localReservationReleasedAt ? <small title={new Date(task.localReservationReleasedAt).toLocaleString('zh-CN')}>已解除本地占位 · 远端状态独立核对</small> : !terminal && task.cancelState !== 'none' && <small>{task.cancelState === 'requested' ? '取消已受理，正在核对远端终态' : task.cancelState === 'requesting' ? '正在请求取消' : '取消异常待核对'}</small>}</TableCell>
+          <TableCell className="queue-duration-cell"><TaskDuration task={task} /></TableCell>
+          <TableCell className="queue-status-cell"><div className="queue-status-heading"><span className={`task-status queue-status-badge status-${queueStatus(task)}`}>{task.manualCancellationConfirmedAt && task.remoteStatus !== 'success' && task.remoteStatus !== 'failed' ? '已取消·人工确认' : !terminal && task.cancelState === 'requested' ? '取消已受理·待确认' : statusLabels[task.remoteStatus]}</span>
+            {(task.notice || task.stage || task.manualCancellationConfirmedAt || task.localReservationReleasedAt || task.cancelState !== 'none') && <details className="queue-status-details"><summary>详情</summary>
+              {task.manualCancellationConfirmedAt && <p>最后远端状态：{statusLabels[task.remoteStatus]} · 人工确认非平台回执，不代表退款</p>}
+              {(task.notice || task.stage) && <p>{task.notice || task.stage}</p>}
+              {task.localReservationReleasedAt && <p>已解除本地占位 · 远端状态独立核对</p>}
+              {!terminal && task.cancelState !== 'none' && <p>{task.cancelState === 'requested' ? '取消已受理，正在核对远端终态；不保证退款' : task.cancelState === 'requesting' ? '正在请求取消' : '取消异常待核对'}</p>}
+            </details>}</div>
+            <small className="queue-status-timing"><TaskTiming task={task} /></small></TableCell>
           <TableCell className="muted">{task.draft ? '低清已就绪' : task.sampling ? terminal || task.cancelState === 'requested' ? '采样已保存' : '采样中' : terminal ? '无采样' : '等待预览'}{task.final ? ' · 成片已就绪' : task.resultVideos?.length ? ' · 有未分类输出' : ''}</TableCell>
           <TableCell><fieldset className="queue-action-fieldset" disabled={batch.busy}><div className="button-row"><Button variant="ghost" size="icon" title="查看预览" aria-label="查看预览" disabled={!draft} onClick={() => onSelect(task)}><FontAwesomeIcon icon={faEye} /></Button>
             {canResolveTask(task) && <Button variant="ghost" size="icon" title="人工确认远端已取消" aria-label="人工确认远端已取消" disabled={actionBusy} onClick={() => void batch.run([task], 'confirm')}><FontAwesomeIcon icon={faCheck} /></Button>}
