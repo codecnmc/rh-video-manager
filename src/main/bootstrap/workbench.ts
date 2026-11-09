@@ -26,6 +26,7 @@ import { registerWorkbench } from '../ipc/register-workbench'
 import { AccountService } from '../modules/accounts'
 import { WorkflowService } from '../modules/workflows'
 import h3ComfyUiTemplate from '../providers/runninghub/h3-comfyui-template.json' with { type: 'json' }
+import h3AcceleratedTemplate from '../providers/runninghub/h3-accelerated-template.json' with { type: 'json' }
 import { ReferenceService, LibraryService } from '../modules/assets'
 import { VideoService } from '../modules/video'
 import { SqliteVideoDraftRepository } from '../infrastructure/database/video-repository'
@@ -169,7 +170,7 @@ export async function initializeWorkbench(): Promise<void> {
   })
   const accounts = new AccountService(new SqliteAccountRepository(database.connection), new SafeStorageCredentialVault(), new RunningHubAccountGateway(), randomUUID)
   const workflows = new WorkflowService(new SqliteWorkflowRepository(database.connection), new RunningHubWorkflowGateway(), randomUUID,
-    JSON.stringify(h3ComfyUiTemplate, null, 2))
+    JSON.stringify(h3ComfyUiTemplate, null, 2), JSON.stringify(h3AcceleratedTemplate, null, 2))
   const assembly = new AssemblyService(new SqliteAssemblyRepository(database.connection), { get: (id) => library.get(id) }, randomUUID)
   const library: LibraryService = new LibraryService(new SqliteAssetRepository(database.connection),
     new ManagedReferenceFiles(join(mediaDirectory, 'assets')), randomUUID, (id) => {

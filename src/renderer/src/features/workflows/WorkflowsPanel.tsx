@@ -60,8 +60,12 @@ export function WorkflowsPanel({ accountId, onDirty, onNotice }: {
   return <section className="management-page workflow-management"><div className="management-toolbar"><div><h2>工作流配置</h2><span className="muted">{visible.length} 个工作流</span></div>
     <div className="button-row"><Button variant="outline" disabled={busy !== null} onClick={() => void perform('download-template', async () => {
       if (await workflows.downloadTemplate()) onNotice('工作流已保存')
-    })}><FontAwesomeIcon icon={faDownload} />下载工作流</Button>
+    })}><FontAwesomeIcon icon={faDownload} />下载标准版</Button>
+    <Button variant="outline" disabled={busy !== null} title="SelfLift 原生 H3 加速版，提供采样节点与成片输出，无独立低清预览" onClick={() => void perform('download-accelerated', async () => {
+      if (await workflows.downloadTemplate('accelerated')) onNotice('加速版工作流已保存，请导入 RunningHub 后添加所属账号的线上工作流 ID')
+    })}><FontAwesomeIcon icon={faDownload} />下载加速版</Button>
     <Button disabled={owners.length === 0 || editing !== undefined || busy !== null} onClick={() => setEditing(null)}><FontAwesomeIcon icon={faPlus} />添加工作流</Button></div></div>
+    <p className="muted">加速版：原生 H3 + SelfLift，含采样节点与成片输出，无独立低清预览。下载后导入 RunningHub，再添加所属账号的线上工作流 ID。</p>
     {(workflows.error || accounts.error) && <p className="field-error">{workflows.error?.message || accounts.error?.message}</p>}
     <div className={`management-layout ${editing !== undefined ? 'editing' : ''}`}><div className="management-table-scroll"><Table className="management-table"><TableHeader><TableRow>
       <TableHead>名称 / 所属账号</TableHead><TableHead>工作流 ID</TableHead><TableHead>预览识别</TableHead><TableHead>状态</TableHead><TableHead>操作</TableHead></TableRow></TableHeader><TableBody>{visible.map((workflow) => <TableRow key={workflow.id}>

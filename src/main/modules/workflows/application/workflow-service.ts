@@ -1,12 +1,13 @@
-import type { SaveWorkflow, Workflow } from '../../../../shared/contracts/workflows'
+import type { SaveWorkflow, Workflow, WorkflowTemplate } from '../../../../shared/contracts/workflows'
 import type { WorkflowGateway, WorkflowRepository } from '../ports/workflows'
 
 export class WorkflowService {
   constructor(private readonly repository: WorkflowRepository, private readonly gateway: WorkflowGateway, private readonly id: () => string,
-    private readonly templateContent = '') {}
-  exportTemplate(): string {
-    if (!this.templateContent) throw new Error('工作流模板尚未配置')
-    return this.templateContent
+    private readonly templateContent = '', private readonly acceleratedTemplateContent = '') {}
+  exportTemplate(template: WorkflowTemplate = 'standard'): string {
+    const content = template === 'accelerated' ? this.acceleratedTemplateContent : this.templateContent
+    if (!content) throw new Error('工作流模板尚未配置')
+    return content
   }
   list(): Workflow[] { return this.repository.list() }
   get(id: string): Workflow {

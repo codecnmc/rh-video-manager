@@ -14,7 +14,7 @@ import { consumptionFilterSchema } from '../../shared/contracts/consumption'
 import { downloadPreview, exportManagedVideo } from '../infrastructure/files/download-preview'
 import { generatedVideoName } from '../../shared/media-naming'
 import { entityIdSchema, saveAccountSchema } from '../../shared/contracts/accounts'
-import { inspectWorkflowSchema, saveWorkflowSchema } from '../../shared/contracts/workflows'
+import { inspectWorkflowSchema, saveWorkflowSchema, workflowTemplateSchema } from '../../shared/contracts/workflows'
 import { importReferencesSchema, draftReferencesSchema, pasteReferenceImagesSchema, replaceDraftReferenceSchema } from '../../shared/contracts/references'
 import { attachAssetSchema } from '../../shared/contracts/assets'
 import type { AccountService } from '../modules/accounts'
@@ -119,9 +119,10 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   })
   handle('accounts:refresh', async (input) => accounts.refresh(z.object({ id: z.string().uuid().nullable() }).parse(input).id))
   handle('workflows:list', async () => workflows.list())
-  handle('workflows:export-template', async (_input, window) => {
-    const content = workflows.exportTemplate()
-    const selected = await dialog.showSaveDialog(window, { title: '下载工作流', defaultPath: 'H3全能参考工作流-无通知.json',
+  handle('workflows:export-template', async (input, window) => {
+    const { template } = z.object({ template: workflowTemplateSchema.default('standard') }).parse(input ?? {})
+    const content = workflows.exportTemplate(template)
+    const selected = await dialog.showSaveDialog(window, { title: template === 'accelerated' ? '下载加速版工作流' : '下载标准版工作流', defaultPath: template === 'accelerated' ? 'H3全能参考工作流-加速版.json' : 'H3全能参考工作流-无通知.json',
       filters: [{ name: 'ComfyUI 工作流', extensions: ['json'] }] })
     if (selected.canceled || !selected.filePath) return false
     try { await writeFile(selected.filePath, content, 'utf8') }

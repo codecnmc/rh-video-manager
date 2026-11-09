@@ -108,7 +108,7 @@ export interface DesktopApi {
   deleteAccount(id: string): Promise<Result<AccountPool>>
   refreshAccounts(id: string | null): Promise<Result<AccountPool>>
   listWorkflows(): Promise<Result<Workflow[]>>
-  exportWorkflowTemplate(): Promise<Result<boolean>>
+  exportWorkflowTemplate(template?: import('./workflows').WorkflowTemplate): Promise<Result<boolean>>
   saveWorkflow(input: SaveWorkflow): Promise<Result<Workflow[]>>
   deleteWorkflow(id: string): Promise<Result<Workflow[]>>
   inspectWorkflow(id: string): Promise<Result<Workflow[]>>

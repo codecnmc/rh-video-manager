@@ -117,7 +117,7 @@ const api: DesktopApi = {
   deleteAccount: (id) => ipcRenderer.invoke('accounts:delete', { id }),
   refreshAccounts: (id) => ipcRenderer.invoke('accounts:refresh', { id }),
   listWorkflows: () => ipcRenderer.invoke('workflows:list'),
-  exportWorkflowTemplate: () => ipcRenderer.invoke('workflows:export-template'),
+  exportWorkflowTemplate: (template = 'standard') => ipcRenderer.invoke('workflows:export-template', { template }),
   saveWorkflow: (input) => ipcRenderer.invoke('workflows:save', input),
   deleteWorkflow: (id) => ipcRenderer.invoke('workflows:delete', { id }),
   inspectWorkflow: (id) => ipcRenderer.invoke('workflows:inspect', { id }),

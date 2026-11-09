@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import type { PreviewCapabilities } from './preview'
+export const workflowTemplateSchema = z.enum(['standard', 'accelerated'])
+export type WorkflowTemplate = z.infer<typeof workflowTemplateSchema>
 
 export const saveWorkflowSchema = z.object({
   id: z.string().uuid().nullable(), name: z.string().trim().min(1).max(100),
