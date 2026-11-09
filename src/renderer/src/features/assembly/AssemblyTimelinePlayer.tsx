@@ -18,7 +18,8 @@ import { loadAssemblyFonts } from './assembly-fonts'
 
 interface PlaybackProps {
   active?: boolean
-  version: AssemblyVersion; seekRequest: { time: number; serial: number }
+  version: AssemblyVersion; seekRequest: { time: number; serial: number; revealCaptions?: boolean }
+  selectedCaptionId?: string | null
   onPosition: (position: number) => void; onNotice: (message: string) => void
 }
 
@@ -124,7 +125,11 @@ function useAssemblyPlayback({ version, seekRequest, onPosition, onNotice, activ
   }
   useEffect(() => { stop(); preparation.current.reset(); publish(0) }, [version.id, layout])
   useEffect(() => { if (!pageActive) stop() }, [pageActive])
-  useEffect(() => { seek(seekRequest.time) }, [seekRequest.serial])
+  useEffect(() => {
+    // 主动编辑字幕时暂停并开启字幕预览，避免选中后播放头立即离开可见区间。
+    if (seekRequest.revealCaptions) { stop(); setShowCaptions(true) }
+    seek(seekRequest.time)
+  }, [seekRequest.serial])
   useEffect(() => () => { stop(); void context.current?.close().catch(() => {}) }, [])
   useEffect(() => {
     const element = stage.current
@@ -313,7 +318,7 @@ export function AssemblyTimelinePlayer(props: PlaybackProps) {
           {frameMask && <AssemblyRaster request={{ kind: 'mask', width: canvas.width, height: canvas.height, mask: frameMask }} />}
         </div>
       })}
-      {showCaptions && captions.length > 0 && <div className="assembly-caption-overlay" style={{ bottom: style.alignment === 'center' ? undefined : `${style.bottom}%`, top: style.alignment === 'center' ? '50%' : undefined, transform: style.alignment === 'center' ? 'translateY(-50%)' : undefined, fontFamily: style.font ? titleFonts[style.font].family : undefined, fontSize: frame.height * style.size / 100, WebkitTextStrokeWidth: frame.height * style.outline / 100, color: style.color }}>{captions.map((caption) => <div key={caption.id}>{caption.text}</div>)}</div>}
+      {showCaptions && captions.length > 0 && <div className="assembly-caption-overlay" style={{ bottom: style.alignment === 'center' ? undefined : `${style.bottom}%`, top: style.alignment === 'center' ? '50%' : undefined, transform: style.alignment === 'center' ? 'translateY(-50%)' : undefined, fontFamily: style.font ? titleFonts[style.font].family : undefined, fontSize: frame.height * style.size / 100, WebkitTextStrokeWidth: frame.height * style.outline / 100, color: style.color }}>{captions.map((caption) => <div key={caption.id} className={props.selectedCaptionId === caption.id ? 'assembly-caption-preview-selected' : undefined}>{caption.text}</div>)}</div>}
       {!version.clips.length && <div className="assembly-preview-empty"><FontAwesomeIcon icon={faClapperboard} /><span>尚未添加视频片段</span></div>}
     </div></div>
     {version.sounds.filter((sound) => sound.state === 'bound' && sound.assetId).map((sound) => <TimelineAudio key={`${audioContextEpoch}-${version.id}-${sound.id}-${sound.assetId}`} sound={sound} start={soundStart(version, sound)} gain={soundGain(version, sound)} context={audioContext} position={position} playing={playing} buffering={waiting} epoch={audioEpoch} volume={volume} onNotice={onNotice} />)}

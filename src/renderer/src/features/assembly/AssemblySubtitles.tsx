@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlus, faTrash, faFileImport, faFileExport, faScissors, faLink, faClosedCaptioning } from '@fortawesome/free-solid-svg-icons'
 import type { AssemblyCaption, AssemblyVersion } from '@contracts/assembly'
@@ -9,13 +9,24 @@ import { useAssemblySubtitles } from './use-assembly-subtitles'
 import { SelectField, SelectOption } from '@/components/ui/select-field'
 import { titleFonts } from '../../../../shared/assembly-visual'
 
-export function AssemblySubtitles({ version, position, disabled, selected, onSelect, onChange, onSeek, onNotice }: {
+export function AssemblySubtitles({ version, position, disabled, selected, onSelect, onChange, onNotice }: {
   version: AssemblyVersion; position: number; disabled: boolean; selected: string | null; onSelect: (id: string) => void
-  onChange: (version: AssemblyVersion) => void; onSeek: (time: number) => void; onNotice: (message: string) => void
+  onChange: (version: AssemblyVersion) => void; onNotice: (message: string) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
   const subtitles = useAssemblySubtitles(version, onChange, onNotice)
   const captions = [...(version.captions ?? [])].sort((a, b) => a.start - b.start)
+  const current = captions.find((caption) => caption.id === selected) ?? captions.find((caption) => position >= caption.start && position < caption.end) ?? captions[0]
+  const currentIndex = captions.findIndex((caption) => caption.id === current?.id)
+  const activeEditor = useRef<HTMLElement>(null)
+  const activeRow = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    // 只在主动选择改变时定位，不随播放时钟抢走文字输入焦点。
+    const body = activeEditor.current?.closest('.assembly-inspector-body')
+    if (body) body.scrollTop = 0
+    const row = activeRow.current
+    if (row?.parentElement) row.parentElement.scrollTop = Math.max(0, row.offsetTop - row.parentElement.offsetTop - row.parentElement.clientHeight / 2)
+  }, [selected])
   const style = version.captionStyle ?? defaultCaptionStyle
   function update(id: string, patch: Partial<AssemblyCaption>) {
     onChange({ ...version, captions: captions.map((caption) => caption.id === id ? { ...caption, ...patch } : caption) })
@@ -28,6 +39,23 @@ export function AssemblySubtitles({ version, position, disabled, selected, onSel
       onChange({ ...version, captions: [...captions, caption] }); onSelect(caption.id)
     }}><FontAwesomeIcon icon={faPlus} /></Button></div></div>
     <input ref={input} type="file" accept=".srt" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void subtitles.importSrt(file); event.target.value = '' }} />
+    {current && <section ref={activeEditor} className="assembly-caption-current" aria-label="当前字幕编辑">
+      <div className="assembly-pane-heading"><strong>字幕 {currentIndex + 1} / {captions.length}</strong><Button variant="outline" size="small" onClick={() => onSelect(current.id)}>定位画面</Button></div>
+      <fieldset className="assembly-form" disabled={disabled || subtitles.reading}>
+        <label>字幕内容<textarea rows={3} maxLength={2000} value={current.text} onFocus={() => { if (selected !== current.id) onSelect(current.id) }} onChange={(event) => update(current.id, { text: event.target.value })} /></label>
+        <div className="assembly-field-pair"><label>开始 / 秒<Input type="number" min={0} step={0.01} value={current.start} onChange={(event) => { const start = event.target.valueAsNumber; if (start >= 0 && start < current.end) update(current.id, { start }) }} /></label>
+          <label>结束 / 秒<Input type="number" min={current.start} step={0.01} value={current.end} onChange={(event) => { const end = event.target.valueAsNumber; if (end > current.start && end <= 86400) update(current.id, { end }) }} /></label></div>
+        <span className="muted">时长 {(current.end - current.start).toFixed(2)} 秒 · 修改实时预览</span>
+        <div className="button-row"><Button variant="outline" size="small" disabled={position <= current.start || position >= current.end || captions.length >= 10000} onClick={() => onChange({ ...version, captions: captions.flatMap((item) => item.id === current.id ? [{ ...item, end: position }, { ...item, id: crypto.randomUUID(), start: position }] : [item]) })}><FontAwesomeIcon icon={faScissors} />拆分</Button>
+          <Button variant="outline" size="small" disabled={!captions[currentIndex + 1] || current.text.length + (captions[currentIndex + 1]?.text.length ?? 0) + 1 > 2000} onClick={() => { const next = captions[currentIndex + 1]; if (next) onChange({ ...version, captions: captions.filter((item) => item.id !== next.id).map((item) => item.id === current.id ? { ...item, end: Math.max(item.end, next.end), text: `${item.text}\n${next.text}` } : item) }) }}><FontAwesomeIcon icon={faLink} />合并下一条</Button>
+          <Button variant="ghost" size="icon" title="删除当前字幕" aria-label="删除当前字幕" onClick={() => { onChange({ ...version, captions: captions.filter((item) => item.id !== current.id) }); const next = captions[currentIndex + 1] ?? captions[currentIndex - 1]; if (next) onSelect(next.id) }}><FontAwesomeIcon icon={faTrash} /></Button></div>
+      </fieldset>
+      {(captions.some((item) => item.id !== current.id && item.start < current.end && item.end > current.start) || current.end > totalDuration(version) || current.text.split('\n').some((line) => line.length > 28)) && <p className="text-warning">{current.end > totalDuration(version) ? '超出成片范围' : captions.some((item) => item.id !== current.id && item.start < current.end && item.end > current.start) ? '与其他字幕重叠' : '单行文字较长'}</p>}
+    </section>}
+    {!current && <p className="assembly-subtle-empty">暂无字幕，可在播放头新增或导入 SRT</p>}
+    <div className="assembly-caption-navigation"><Button variant="outline" size="small" disabled={currentIndex <= 0} onClick={() => { const item = captions[currentIndex - 1]; if (item) onSelect(item.id) }}>上一条</Button><span className="muted">{captions.length} 条字幕</span><Button variant="outline" size="small" disabled={currentIndex < 0 || currentIndex >= captions.length - 1} onClick={() => { const item = captions[currentIndex + 1]; if (item) onSelect(item.id) }}>下一条</Button></div>
+    <div className="assembly-caption-list" aria-label="字幕列表">{captions.map((caption, index) => <button type="button" key={caption.id} ref={current?.id === caption.id ? activeRow : undefined} aria-pressed={current?.id === caption.id} onClick={() => onSelect(caption.id)} title={caption.text}><span>{index + 1}</span><strong>{caption.text || '空字幕'}</strong><small>{caption.start.toFixed(2)}–{caption.end.toFixed(2)} 秒</small></button>)}</div>
+    <details className="assembly-caption-settings"><summary>全局字幕样式与导入工具</summary>
     <Button variant="outline" disabled={disabled || subtitles.reading || !version.clips.length} onClick={subtitles.previewPrompts}><FontAwesomeIcon icon={faClosedCaptioning} />从提示词生成字幕</Button>
     {subtitles.draft && <section aria-label="对白字幕预览">
       <h3>待追加对白 · {subtitles.draft.captions.length} 条</h3>
@@ -47,15 +75,6 @@ export function AssemblySubtitles({ version, position, disabled, selected, onSel
       <div className="assembly-field-pair"><label>文字颜色<input type="color" value={style.color} onChange={(event) => onChange({ ...version, captionStyle: { ...style, color: event.target.value } })} /></label>
         <label>描边 / 画面高度 %<Input type="number" min={0} max={0.5} step={0.05} value={style.outline} onChange={(event) => { const outline = event.target.valueAsNumber; if (outline >= 0 && outline <= 0.5) onChange({ ...version, captionStyle: { ...style, outline } }) }} /></label></div>
     </fieldset>
-    {captions.map((caption, index) => <section key={caption.id} className={`assembly-caption-item${selected === caption.id ? ' selected' : ''}`}>
-      <div className="assembly-pane-heading"><Button variant="ghost" size="small" onClick={() => { onSelect(caption.id); onSeek(caption.start) }}>{index + 1}</Button><div className="button-row">
-        <Button variant="ghost" size="icon" title="播放头处分割字幕" aria-label="分割字幕" disabled={disabled || position <= caption.start || position >= caption.end} onClick={() => onChange({ ...version, captions: captions.flatMap((item) => item.id === caption.id ? [{ ...item, end: position }, { ...item, id: crypto.randomUUID(), start: position }] : [item]) })}><FontAwesomeIcon icon={faScissors} /></Button>
-        <Button variant="ghost" size="icon" title="与下一条合并" aria-label="合并字幕" disabled={disabled || !captions[index + 1]} onClick={() => { const next = captions[index + 1]!; onChange({ ...version, captions: captions.filter((item) => item.id !== next.id).map((item) => item.id === caption.id ? { ...item, end: Math.max(item.end, next.end), text: `${item.text}\n${next.text}` } : item) }) }}><FontAwesomeIcon icon={faLink} /></Button>
-        <Button variant="ghost" size="icon" title="删除字幕" aria-label="删除字幕" disabled={disabled} onClick={() => onChange({ ...version, captions: captions.filter((item) => item.id !== caption.id) })}><FontAwesomeIcon icon={faTrash} /></Button></div></div>
-      <fieldset className="assembly-form" disabled={disabled}><div className="assembly-field-pair"><label>开始 / 秒<Input type="number" min={0} step={0.01} value={caption.start} onChange={(event) => { const start = event.target.valueAsNumber; if (start >= 0 && start < caption.end) update(caption.id, { start }) }} /></label>
-        <label>结束 / 秒<Input type="number" min={caption.start} step={0.01} value={caption.end} onChange={(event) => { const end = event.target.valueAsNumber; if (end > caption.start && end <= 86400) update(caption.id, { end }) }} /></label></div>
-        <label>文字<textarea rows={2} maxLength={2000} value={caption.text} onFocus={() => onSelect(caption.id)} onChange={(event) => update(caption.id, { text: event.target.value })} /></label></fieldset>
-      {(captions.some((item) => item.id !== caption.id && item.start < caption.end && item.end > caption.start) || caption.end > totalDuration(version) || caption.text.split('\n').some((line) => line.length > 28)) && <p className="text-warning">{caption.end > totalDuration(version) ? '超出成片范围' : captions.some((item) => item.id !== caption.id && item.start < caption.end && item.end > caption.start) ? '与其他字幕重叠' : '单行文字较长'}</p>}
-    </section>)}
+    </details>
   </div>
 }

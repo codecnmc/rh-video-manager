@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTrash, faPlus } from '@fortawesome/free-solid-svg-icons'
 import type { AssemblySound, AssemblyVersion } from '@contracts/assembly'
@@ -14,6 +14,11 @@ import { useAssemblyPlaybackLease } from './AssemblyPlaybackScope'
 export function AssemblySounds({ version, assets, selectedClip, selectedSound, onChange, disabled }: {
   version: AssemblyVersion; assets: Asset[]; selectedClip?: string | undefined; selectedSound?: string | null; onChange: (version: AssemblyVersion) => void; disabled: boolean
 }) {
+  const panel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const body = panel.current?.closest('.assembly-inspector-body')
+    if (body) body.scrollTop = 0
+  }, [selectedSound])
   function update(id: string, patch: Partial<AssemblySound>) {
     const sound = version.sounds.find((item) => item.id === id)
     if (version.tracks?.some((track) => track.id === sound?.trackId && track.locked)) return
@@ -21,7 +26,7 @@ export function AssemblySounds({ version, assets, selectedClip, selectedSound, o
   }
   const selected = version.sounds.find((sound) => sound.id === selectedSound)
   const sounds = selected ? [selected] : version.sounds.filter((sound) => sound.clipId === null || sound.clipId === selectedClip)
-  return <div className="assembly-sounds"><div className="assembly-pane-heading"><h3>声音需求</h3><Button variant="ghost" size="small" disabled={disabled} onClick={() => onChange({ ...version, sounds: [...version.sounds, {
+  return <div ref={panel} className="assembly-sounds"><div className="assembly-pane-heading"><h3>{selected ? '当前声音' : '声音需求'}</h3><Button variant="ghost" size="small" disabled={disabled} onClick={() => onChange({ ...version, sounds: [...version.sounds, {
     id: crypto.randomUUID(), clipId: selectedClip ?? null, kind: 'effect', title: '待补音效', state: 'missing', assetId: null, evidence: '', start: 0, duration: 1, gain: 1
   }] })}><FontAwesomeIcon icon={faPlus} />添加</Button></div>
     {!sounds.length && <div className="assembly-subtle-empty">暂无已标注声音需求</div>}

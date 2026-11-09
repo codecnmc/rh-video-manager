@@ -1,4 +1,4 @@
-import { useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faVolumeXmark, faHeadphones, faLock, faLockOpen, faArrowsLeftRight } from '@fortawesome/free-solid-svg-icons'
 import type { AssemblyVersion, AssemblyTrack } from '@contracts/assembly'
@@ -21,6 +21,16 @@ interface TimelineProps {
   onAddVideo: (asset: Asset, beforeId?: string) => void
 }
 export function AssemblyTimeline(props: TimelineProps) {
+  const scroll = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const caption = props.version.captions?.find((item) => item.id === props.selectedCaption)
+    const viewport = scroll.current
+    if (!caption || !viewport) return
+    // 列表选择也能定位时间轴；仅在选中字幕不在可视范围时横向滚动。
+    const start = 180 + caption.start * props.zoom
+    const end = 180 + caption.end * props.zoom
+    if (start < viewport.scrollLeft + 180 || end > viewport.scrollLeft + viewport.clientWidth) viewport.scrollLeft = Math.max(0, start - 180 - 24)
+  }, [props.selectedCaption, props.zoom])
   const [dropTarget, setDropTarget] = useState<{ id: string; after: boolean } | null>(null)
   const gesture = useTimelineGesture(props.version, props.zoom, props.position, props.snapping, props.onChange)
   const version = gesture.version
@@ -32,12 +42,18 @@ export function AssemblyTimeline(props: TimelineProps) {
   const unassigned = version.sounds.filter((sound) => !sound.trackId)
   const step = props.zoom >= 70 ? 1 : props.zoom >= 25 ? 5 : 10
   function handle(event: PointerEvent<HTMLElement>, kind: 'clip' | 'sound' | 'caption', id: string, edge: 'in' | 'out' | 'move') {
-    if (!props.disabled) gesture.begin(event, kind, id, edge)
+    if (props.disabled || event.button !== 0) return
+    event.currentTarget.focus({ preventScroll: true })
+    // 指针捕获会阻止原生点击聚焦，选中必须先于拖拽建立，不能依赖松手后的 click。
+    if (kind === 'caption') props.onSelectCaption(id)
+    if (kind === 'sound') props.onSelectSound(id)
+    if (kind === 'clip') props.onSelect(id)
+    gesture.begin(event, kind, id, edge)
   }
   function updateTrack(track: AssemblyTrack, key: 'muted' | 'solo' | 'locked') {
     props.onChange({ ...version, tracks: tracks.map((item) => item.id === track.id ? { ...item, [key]: !item[key] } : item) })
   }
-  return <div className="assembly-timeline-scroll"><div className="assembly-timeline assembly-editable-timeline" style={{ width: width + 180 }}>
+  return <div ref={scroll} className="assembly-timeline-scroll"><div className="assembly-timeline assembly-editable-timeline" style={{ width: width + 180 }}>
     <div className="assembly-playhead" style={{ left: 180 + props.position * props.zoom }} />
     <div className="assembly-track"><span className="assembly-track-name">时间</span><div className="assembly-track-body assembly-ruler">{Array.from({ length: Math.min(2000, Math.ceil(end / step) + 1) }, (_, index) => <span key={index} style={{ left: index * step * props.zoom }}>{timecode(index * step)}</span>)}<input className="assembly-ruler-seek" aria-label="时间轴播放头" type="range" min={0} max={totalDuration(version) || 1} value={Math.min(props.position, totalDuration(version))} step={1 / (version.frameRate ?? 30)} disabled={!clips.length} style={{ width: totalDuration(version) * props.zoom }} onChange={(event) => props.onSeek(Number(event.target.value))} /></div></div>
     <div className="assembly-track"><span className="assembly-track-name">视频 V1</span><div className="assembly-track-body" onDragOver={(event) => { if (!props.disabled && event.dataTransfer.types.includes(assemblyAssetDragType)) { event.preventDefault(); event.stopPropagation() } }} onDrop={(event) => {
@@ -75,7 +91,7 @@ export function AssemblyTimeline(props: TimelineProps) {
         </div>
       })}</div></div>)}
     <div className="assembly-track assembly-caption-track"><span className="assembly-track-name">字幕</span><div className="assembly-track-body">{(version.captions ?? []).map((caption) => <div key={caption.id} className={`assembly-caption-block${props.selectedCaption === caption.id ? ' selected' : ''}`} style={{ left: caption.start * props.zoom, width: (caption.end - caption.start) * props.zoom }}>
-      <button type="button" className="assembly-block-select" disabled={props.disabled} title={caption.text} onClick={() => { props.onSelectCaption(caption.id); props.onSeek(caption.start) }} onPointerDown={(event) => handle(event, 'caption', caption.id, 'move')} onPointerMove={gesture.move} onPointerUp={gesture.end} onPointerCancel={gesture.end}>{caption.text}</button>
+      <button type="button" className="assembly-block-select" disabled={props.disabled} title={caption.text} aria-pressed={props.selectedCaption === caption.id} onClick={(event) => { if (event.detail === 0) props.onSelectCaption(caption.id) }} onPointerDown={(event) => handle(event, 'caption', caption.id, 'move')} onPointerMove={gesture.move} onPointerUp={gesture.end} onPointerCancel={gesture.end}>{caption.text}</button>
       {(['in', 'out'] as const).map((edge) => <button key={edge} type="button" className={`assembly-trim-handle edge-${edge}`} aria-label={`字幕${edge === 'in' ? '开始' : '结束'}`} disabled={props.disabled} onPointerDown={(event) => handle(event, 'caption', caption.id, edge)} onPointerMove={gesture.move} onPointerUp={gesture.end} onPointerCancel={gesture.end} />)}
     </div>)}</div></div>
   </div></div>

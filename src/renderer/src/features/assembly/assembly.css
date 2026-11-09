@@ -66,18 +66,18 @@
 .assembly-switchbar > button { flex-shrink: 0; }
 .assembly-switchbar > label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .assembly-switchbar [data-slot='select-trigger'] { width: 128px; }
-.assembly-editing-area { display: grid; grid-template-columns: 540px minmax(240px, 1fr) 300px; flex: 1 1 0; min-height: 260px; overflow: hidden; }
+.assembly-editing-area { display: grid; grid-template-columns: 320px minmax(240px, 1fr) 380px; flex: 1 1 0; min-height: 260px; overflow: hidden; }
 .assembly-sources { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .assembly-sources > .assembly-pane-heading { padding: 0 12px; border-bottom: 1px solid var(--border); min-height: 47px; }
-.assembly-source-layout { display: grid; grid-template-columns: 106px minmax(0, 1fr); flex: 1; min-height: 0; }
-.assembly-source-categories { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding: 12px 7px; border-right: 1px solid var(--border); background: #f7f9fa; }
-.assembly-source-kind, .assembly-source-scopes { display: flex; flex-direction: column; gap: 4px; }
-.assembly-source-scopes { border-top: 1px solid var(--border); padding-top: 12px; }
+.assembly-source-layout { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.assembly-source-categories { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-bottom: 1px solid var(--border); background: #f7f9fa; flex-shrink: 0; }
+.assembly-source-kind, .assembly-source-scopes { display: flex; gap: 4px; }
+.assembly-source-scopes { border-top: 1px solid var(--border); padding-top: 4px; }
 .assembly-source-categories button { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 34px; padding: 7px; border-radius: 4px; font-size: 12px; text-align: left; color: var(--muted); }
 .assembly-source-categories button > span { margin-left: auto; font-size: 10px; font-variant-numeric: tabular-nums; }
 .assembly-source-categories button:hover { background: #edf1f3; }
 .assembly-source-categories button[aria-pressed='true'] { background: var(--primary-soft); color: #20777c; font-weight: 600; }
-.assembly-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 10px; padding: 12px 12px 0; }
+.assembly-source-content { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: 10px; padding: 12px 12px 0; }
 .assembly-pane-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 43px; flex-shrink: 0; }
 .assembly-pane-heading > span { font-size: 11px; }
 .assembly-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -148,6 +148,8 @@
 .assembly-form .assembly-checkbox { flex-direction: row; align-items: center; }
 .assembly-checkbox input { width: 16px; height: 16px; min-height: 16px; accent-color: var(--primary); }
 .assembly-timeline-section { border-top: 1px solid var(--border); display: flex; flex-direction: column; height: 260px; min-height: 170px; flex: 0 0 260px; }
+.assembly-timeline-resize { height: 7px; flex: 0 0 7px; cursor: ns-resize; touch-action: none; border-top: 1px solid var(--border); background: #f4f7f8; }
+.assembly-timeline-resize:hover, .assembly-timeline-resize:focus-visible { background: var(--primary-soft); outline: 1px solid var(--primary); outline-offset: -1px; }
 .assembly-timeline-toolbar { padding: 7px 16px; display: flex; align-items: center; gap: 4px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
 .assembly-timeline-toolbar h2 { margin-right: 12px; }
 .assembly-zoom { display: flex; gap: 9px; align-items: center; margin-left: auto; color: var(--muted); }
@@ -195,6 +197,23 @@
 .assembly-subtitles > .assembly-pane-heading { min-height: 32px; flex-wrap: wrap; }
 .assembly-subtitles > .button { align-self: flex-start; max-width: 100%; white-space: normal; text-align: left; }
 .assembly-subtitles > .assembly-form { margin: 0; padding-top: 0; }
+.assembly-caption-current { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.assembly-caption-current > .assembly-pane-heading { min-height: 32px; }
+.assembly-caption-current textarea { min-height: 88px; resize: vertical; line-height: 1.6; }
+.assembly-caption-current > p, .assembly-caption-current .muted { font-size: 11px; }
+.assembly-caption-navigation { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.assembly-caption-list { position: relative; min-height: 48px; max-height: 180px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; flex-shrink: 0; }
+.assembly-caption-list > button { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 3px 8px; width: 100%; padding: 8px; border: 0; border-bottom: 1px solid var(--border); background: #fff; text-align: left; font-size: 12px; cursor: pointer; }
+.assembly-caption-list > button > span { grid-row: span 2; color: var(--muted); }
+.assembly-caption-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.assembly-caption-list small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.assembly-caption-list > button:hover { background: #f4f7f8; }
+.assembly-caption-list > button[aria-pressed='true'] { background: var(--primary-soft); box-shadow: inset 3px 0 var(--primary); }
+.assembly-caption-list > button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.assembly-caption-settings { border-top: 1px solid var(--border); padding-top: 12px; }
+.assembly-caption-settings > summary { cursor: pointer; color: var(--muted); font-size: 12px; padding-bottom: 12px; }
+.assembly-caption-settings > .assembly-form, .assembly-caption-settings > section { margin-top: 12px; }
+.assembly-caption-preview-selected { outline: 1px solid #39d7d1; outline-offset: 5px; }
 .assembly-track-toggles { display: flex; flex-wrap: wrap; gap: 12px; }
 .assembly-timeline-section { height: 320px; flex-basis: 320px; }
 .assembly-timeline-toolbar { flex-wrap: wrap; }
@@ -218,19 +237,20 @@
 .assembly-trim-handle.edge-out { right: 0; }
 .assembly-trim-handle:hover, .assembly-trim-handle:focus-visible { background: var(--primary); }
 .assembly-transition-label { position: absolute; bottom: 0; left: 8px; right: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; background: #ffffffdf; pointer-events: none; }
-.assembly-caption-track { min-height: 40px; }
-.assembly-caption-block { position: absolute; top: 4px; height: 30px; background: #f8edc8; color: #775d16; border: 1px solid #d8c276; border-radius: 3px; overflow: hidden; }
+.assembly-caption-track { min-height: 48px; }
+.assembly-caption-block { position: absolute; top: 4px; height: 38px; background: #f8edc8; color: #775d16; border: 1px solid #d8c276; border-radius: 3px; overflow: hidden; }
+.assembly-caption-block.selected .assembly-trim-handle { width: 10px; background: #16898d66; }
 .assembly-caption-block.selected { outline: 2px solid var(--primary); outline-offset: -2px; }
 .assembly-waveform { position: absolute; inset: 1px 7px; width: calc(100% - 14px); height: calc(100% - 2px); pointer-events: none; opacity: .24; }
 .assembly-waveform + .assembly-block-select { position: relative; z-index: 1; }
 @media (max-width: 1450px) {
-  .assembly-editing-area { grid-template-columns: 460px minmax(200px, 1fr) 280px; }
+  .assembly-editing-area { grid-template-columns: 260px minmax(200px, 1fr) 340px; }
   .assembly-editor-title { flex-basis: 180px; }
   .assembly-capability { max-width: 28px; overflow: hidden; white-space: nowrap; }
   .assembly-capability > svg { flex-shrink: 0; }
 }
 @media (max-width: 1250px) {
-  .assembly-editing-area { grid-template-columns: 380px minmax(200px, 1fr) 260px; }
+  .assembly-editing-area { grid-template-columns: 220px minmax(200px, 1fr) 300px; }
   .assembly-source-layout { grid-template-columns: 96px minmax(0, 1fr); }
   .assembly-editor-heading { flex-wrap: wrap; }
   .assembly-preview { padding-right: 12px; padding-left: 12px; }

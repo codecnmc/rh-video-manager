@@ -22,6 +22,7 @@ import { pendingSounds, timecode, totalDuration, timelineClips, reorderClips, sp
 import { useAssemblyExport } from './use-assembly-export'
 import { AssemblySources, AssemblySourcePreview, assemblyAssetDragType } from './AssemblySources'
 import { AssemblyTimeline } from './AssemblyTimeline'
+import { AssemblyTimelineResize } from './AssemblyTimelineResize'
 import { AssemblyTracks } from './AssemblyTracks'
 import { AssemblySubtitles } from './AssemblySubtitles'
 import { assemblyShortcut } from './assembly-shortcuts'
@@ -70,9 +71,11 @@ export function AssemblyEditor(props: EditorProps) {
   const details = useForm<DetailsValues>({ resolver: zodResolver(detailsSchema), defaultValues: { name: '', episode: '' } })
   const [dialogError, setDialogError] = useState('')
   const [zoom, setZoom] = useState(36)
+  const [timelineHeight, setTimelineHeight] = useState<number | null>(null)
   const [position, setPosition] = useState(0)
   const [openingWindow, setOpeningWindow] = useState(false)
-  const [seekRequest, setSeekRequest] = useState({ time: 0, serial: 0 })
+  const [seekRequest, setSeekRequest] = useState({ time: 0, serial: 0, revealCaptions: false })
+  useEffect(() => { setSelectedCaption(null); setSoundSelection(null) }, [props.document.id, version.id])
   useEffect(() => {
     // 弹窗经 Portal 挂在页面外，隐藏编辑页时需单独关闭，不能遮住视频生成页。
     if (props.active === false) { setSwitching(false); setDialog(null); setInsertingTitle(false); setExportSettingsOpen(false) }
@@ -95,7 +98,12 @@ export function AssemblyEditor(props: EditorProps) {
     disabled: baseLocked, externalChanges, save: editor.save, onNotice: props.onNotice })
   const locked = baseLocked || exporting
   const selectedSound = soundSelection?.versionId === version.id && version.sounds.some((sound) => sound.id === soundSelection.id) ? soundSelection.id : null
-  function seek(time: number) { setSourceId(null); setSeekRequest((value) => ({ time, serial: value.serial + 1 })) }
+  function seek(time: number, revealCaptions = false) { setSourceId(null); setPosition(time); setSeekRequest((value) => ({ time, serial: value.serial + 1, revealCaptions })) }
+  function selectCaption(id: string) {
+    const caption = version.captions?.find((item) => item.id === id)
+    // 新增字幕的状态尚未提交到本次渲染时，也保留其选择，不能丢弃新 ID。
+    setSelectedCaption(id); setInspector('subtitles'); seek(caption?.start ?? position, true)
+  }
   function addSource(asset: Asset) {
     if (locked || asset.kind !== 'video' && asset.kind !== 'audio') return
     setSourceId(null)
@@ -164,6 +172,12 @@ export function AssemblyEditor(props: EditorProps) {
         duration: clip.outPoint - clip.inPoint, gain: 1 }] })
   }
   function splitSelection() {
+    if (inspector === 'subtitles') {
+      const caption = version.captions?.find((item) => item.id === selectedCaption)
+      if (!caption || position <= caption.start || position >= caption.end || (version.captions?.length ?? 0) >= 10000) { props.onNotice('请选中字幕，并将播放头放在其内部'); return }
+      editor.updateVersion({ ...version, captions: version.captions?.flatMap((item) => item.id === caption.id ? [{ ...item, end: position }, { ...item, id: crypto.randomUUID(), start: position }] : [item]) })
+      return
+    }
     const next = inspector === 'sounds' && selectedSound ? splitSound(version, selectedSound, position, crypto.randomUUID()) : inspector === 'clip' && clip ? splitClip(version, clip.id, position, crypto.randomUUID()) : version
     if (next === version) props.onNotice('请选中片段或声音，并将播放头放在其内部')
     else editor.updateVersion(next)
@@ -211,9 +225,9 @@ export function AssemblyEditor(props: EditorProps) {
     <div className="assembly-editing-area">
       <AssemblySources assets={props.assets} loading={props.assetsLoading} error={props.assetsError} disabled={locked} importing={props.importing}
         selected={source?.id} used={usedAssets} onSelect={(asset) => setSourceId(asset.id)} onAdd={addSource} onReload={props.onReloadAssets} onImport={(kind) => void importMedia(kind)} />
-      {source ? <AssemblySourcePreview key={`${source.id}-${source.updatedAt}`} asset={source} active={props.active ?? true} onClose={() => setSourceId(null)} /> : <AssemblyTimelinePlayer active={props.active ?? true} version={version} seekRequest={seekRequest} onPosition={setPosition} onNotice={props.onNotice} />}
+      {source ? <AssemblySourcePreview key={`${source.id}-${source.updatedAt}`} asset={source} active={props.active ?? true} onClose={() => setSourceId(null)} /> : <AssemblyTimelinePlayer active={props.active ?? true} selectedCaptionId={inspector === 'subtitles' ? selectedCaption : null} version={version} seekRequest={seekRequest} onPosition={setPosition} onNotice={props.onNotice} />}
       <aside className="assembly-inspector"><div className="assembly-tabs" role="tablist" aria-label="检查器">{(['clip', 'sounds', 'tracks', 'subtitles', 'canvas'] as const).map((tab) => <Button key={tab} variant="unstyled" role="tab" aria-selected={inspector === tab} onClick={() => setInspector(tab)}>{{ clip: '片段', sounds: `声音${pending ? ` (${pending})` : ''}`, tracks: '轨道', subtitles: '字幕', canvas: '画布' }[tab]}</Button>)}</div>
-        <div className="assembly-inspector-body">{inspector === 'canvas' ? <AssemblyCanvasControls version={version} disabled={locked} onChange={editor.updateVersion} /> : inspector === 'subtitles' ? <AssemblySubtitles key={version.id} version={version} position={position} disabled={locked} selected={selectedCaption} onSelect={setSelectedCaption} onChange={editor.updateVersion} onSeek={seek} onNotice={props.onNotice} /> : inspector === 'tracks' ? <AssemblyTracks version={version} disabled={locked} onChange={editor.updateVersion} /> : inspector === 'sounds' ? <AssemblySounds version={version} assets={props.assets} selectedClip={clip?.id} selectedSound={selectedSound} onChange={editor.updateVersion} disabled={locked} /> : clip ? <fieldset className="assembly-form" disabled={locked}>
+        <div key={inspector} className="assembly-inspector-body">{inspector === 'canvas' ? <AssemblyCanvasControls version={version} disabled={locked} onChange={editor.updateVersion} /> : inspector === 'subtitles' ? <AssemblySubtitles key={version.id} version={version} position={position} disabled={locked} selected={selectedCaption} onSelect={selectCaption} onChange={editor.updateVersion} onNotice={props.onNotice} /> : inspector === 'tracks' ? <AssemblyTracks version={version} disabled={locked} onChange={editor.updateVersion} /> : inspector === 'sounds' ? <AssemblySounds version={version} assets={props.assets} selectedClip={clip?.id} selectedSound={selectedSound} onChange={editor.updateVersion} disabled={locked} /> : clip ? <fieldset className="assembly-form" disabled={locked}>
           <label>片段名称<Input maxLength={200} value={clip.title} onChange={(event) => editor.updateVersion({ ...version, clips: version.clips.map((item) => item.id === clip.id ? { ...item, title: event.target.value } : item) })} /></label>
           {clip.visual && <AssemblyTitleInspector key={`${clip.id}-${clip.outPoint - clip.inPoint}`} version={version} clip={clip} onChange={editor.updateVersion} onNotice={props.onNotice} />}
           <AssemblyMaskControls inherited mask={clip.frameMask} onChange={(frameMask) => editor.updateVersion({ ...version, clips: version.clips.map((item) => {
@@ -256,7 +270,8 @@ export function AssemblyEditor(props: EditorProps) {
         </fieldset> : <div className="assembly-subtle-empty">未选择视频片段</div>}</div>
       </aside>
     </div>
-    <section className={`assembly-timeline-section${dropActive ? ' assembly-drop-active' : ''}`} aria-label="排片时间轴" onDragOver={(event) => {
+    <AssemblyTimelineResize height={timelineHeight ?? 320} onResize={setTimelineHeight} />
+    <section style={timelineHeight === null ? undefined : { height: timelineHeight, flexBasis: timelineHeight }} className={`assembly-timeline-section${dropActive ? ' assembly-drop-active' : ''}`} aria-label="排片时间轴" onDragOver={(event) => {
       if (locked || !event.dataTransfer.types.includes(assemblyAssetDragType)) return
       event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDropActive(true)
     }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false) }} onDrop={(event) => {
@@ -275,8 +290,8 @@ export function AssemblyEditor(props: EditorProps) {
       }}><SelectOption value="">选择接点</SelectOption>{version.clips.slice(1).map((item, offset) => <SelectOption key={item.id} value={item.id} disabled={(item.gapBefore ?? 0) > 0}>{offset + 1} → {offset + 2} · {item.title}</SelectOption>)}</SelectField></label>
       <Button variant="ghost" size="small" title="撤销 (Ctrl+Z)" aria-label="撤销" aria-keyshortcuts="Control+Z Meta+Z" disabled={locked || !editor.canUndo} onClick={editor.undo}><FontAwesomeIcon icon={faRotateLeft} />撤销</Button><Button variant="ghost" size="small" title="重做 (Ctrl+Y / Ctrl+Shift+Z)" aria-label="重做" aria-keyshortcuts="Control+Y Control+Shift+Z Meta+Shift+Z" disabled={locked || !editor.canRedo} onClick={editor.redo}><FontAwesomeIcon icon={faRotateRight} />重做</Button>
       <Button variant="ghost" size="icon" title="片段前移" aria-label="片段前移" disabled={locked || index <= 0} onClick={() => editor.move(-1)}><FontAwesomeIcon icon={faArrowLeft} /></Button><Button variant="ghost" size="icon" title="片段后移" aria-label="片段后移" disabled={locked || index < 0 || index >= version.clips.length - 1} onClick={() => editor.move(1)}><FontAwesomeIcon icon={faArrowRight} /></Button>
-      <Button variant="ghost" size="icon" title="播放头处分割选中片段或声音 (Ctrl+B)" aria-label="分割片段" aria-keyshortcuts="Control+B Meta+B" disabled={locked || !clip && !selectedSound} onClick={splitSelection}><FontAwesomeIcon icon={faScissors} /></Button>
-      <Button variant="ghost" size="icon" title="复制选中片段或声音" aria-label="复制片段" disabled={locked || !clip && !selectedSound} onClick={() => {
+      <Button variant="ghost" size="icon" title="播放头处分割选中的片段、声音或字幕 (Ctrl+B)" aria-label="分割选中项" aria-keyshortcuts="Control+B Meta+B" disabled={locked || (inspector === 'subtitles' ? !selectedCaption : !clip && !selectedSound)} onClick={splitSelection}><FontAwesomeIcon icon={faScissors} /></Button>
+      <Button variant="ghost" size="icon" title="复制选中片段或声音" aria-label="复制片段" disabled={locked || inspector === 'subtitles' || !clip && !selectedSound} onClick={() => {
         const sound = inspector === 'sounds' ? version.sounds.find((item) => item.id === selectedSound) : undefined
         if (sound) {
           if (version.tracks?.some((track) => track.id === sound.trackId && track.locked)) { props.onNotice('轨道已锁定'); return }
@@ -287,12 +302,18 @@ export function AssemblyEditor(props: EditorProps) {
           catch (error) { props.onNotice(error instanceof Error ? error.message : '字幕卡复制失败') }
         } else if (clip) editor.updateVersion(clearInvalidTransitions({ ...version, clips: version.clips.flatMap((item) => item.id === clip.id ? [item, { ...item, id: crypto.randomUUID(), gapBefore: 0, transition: undefined }] : [item]) }))
       }}><FontAwesomeIcon icon={faCopy} /></Button>
-      <Button variant="ghost" size="icon" title="删除画面并保留空隙" aria-label="删除片段" disabled={locked || !clip} onClick={() => removeClip(false)}><FontAwesomeIcon icon={faTrash} /></Button>
-      <Button variant="ghost" size="icon" title="波纹删除画面" aria-label="波纹删除片段" disabled={locked || !clip} onClick={() => removeClip(true)}><FontAwesomeIcon icon={faCompress} /></Button>
+      <Button variant="ghost" size="icon" title="删除当前选中项；视频保留空隙" aria-label="删除选中项" disabled={locked || (inspector === 'subtitles' ? !selectedCaption : inspector === 'sounds' ? !selectedSound : !clip)} onClick={deleteSelection}><FontAwesomeIcon icon={faTrash} /></Button>
+      <Button variant="ghost" size="icon" title="波纹删除画面" aria-label="波纹删除片段" disabled={locked || inspector !== 'clip' || !clip} onClick={() => removeClip(true)}><FontAwesomeIcon icon={faCompress} /></Button>
       <Button variant="ghost" size="icon" title="时间轴吸附" aria-label="时间轴吸附" aria-pressed={snapping} disabled={locked} onClick={() => setSnapping(!snapping)}><FontAwesomeIcon icon={faMagnet} /></Button>
       <label>时间轴帧率<SelectField aria-label="时间轴帧率" disabled={locked} value={String(version.frameRate ?? 30)} onChange={(event) => editor.updateVersion({ ...version, frameRate: Number(event.target.value) })}>{[24, 25, 30, 50, 60].map((rate) => <SelectOption key={rate} value={String(rate)}>{rate} fps</SelectOption>)}</SelectField></label>
-      <label className="assembly-zoom"><FontAwesomeIcon icon={faMagnifyingGlass} /><input aria-label="时间轴缩放" type="range" min={12} max={100} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /></label></div>
-      <AssemblyTimeline version={version} disabled={locked} assets={props.assets} snapping={snapping} onChange={editor.updateVersion} selectedCaption={selectedCaption} onSelectCaption={(id) => { setSelectedCaption(id); setInspector('subtitles'); setSourceId(null) }} onAddAudio={(asset, time, trackId) => { setSourceId(null); void editor.addVideo(asset, time, trackId) }} onAddVideo={(asset, beforeId) => { setSourceId(null); void editor.addVideo(asset, 0, undefined, beforeId) }} onReorder={(source, target, after) => {
+      <label className="assembly-zoom"><FontAwesomeIcon icon={faMagnifyingGlass} /><input aria-label="时间轴缩放" type="range" min={0.01} max={100} step={0.01} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /></label>
+      <Button variant="outline" size="small" title="将全部视频、声音和字幕放入时间轴可视范围" onClick={(event) => {
+        const viewport = event.currentTarget.closest('.assembly-timeline-section')?.querySelector<HTMLElement>('.assembly-timeline-scroll')
+        if (!viewport) return
+        const end = Math.max(totalDuration(version), ...version.sounds.map((sound) => (sound.clipId ? timelineClips(version).find((entry) => entry.clip.id === sound.clipId)?.start ?? 0 : 0) + sound.start + sound.duration), ...(version.captions ?? []).map((caption) => caption.end), 1)
+        setZoom(Math.max(0.01, Math.min(100, (viewport.clientWidth - 204) / end))); viewport.scrollLeft = 0
+      }}>适配全部</Button></div>
+      <AssemblyTimeline version={version} disabled={locked} assets={props.assets} snapping={snapping} onChange={editor.updateVersion} selectedCaption={selectedCaption} onSelectCaption={selectCaption} onAddAudio={(asset, time, trackId) => { setSourceId(null); void editor.addVideo(asset, time, trackId) }} onAddVideo={(asset, beforeId) => { setSourceId(null); void editor.addVideo(asset, 0, undefined, beforeId) }} onReorder={(source, target, after) => {
         const next = reorderClips(version, source, target, after)
         if (next !== version) { editor.updateVersion(next); editor.setSelected(source); setSourceId(null) }
       }} selected={inspector === 'clip' ? clip?.id : undefined} selectedSound={selectedSound} onSelectSound={(id) => { setSoundSelection({ versionId: version.id, id }); setSourceId(null); setInspector('sounds') }} zoom={zoom} position={position} onSeek={seek} onSelect={(id) => { setSoundSelection(null); setSourceId(null); editor.setSelected(id); setInspector('clip') }} />
