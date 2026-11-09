@@ -18,6 +18,31 @@ const definition = JSON.stringify(inspectWorkflowPreview({ code: 0, data: { prom
   high: { class_type: 'VHS_VideoCombine', inputs: { filename_prefix: '%date:yyyyMMdd_hhmmss%_Minimax_H3_Upscale', format: 'video/h264-mp4' } }
 }) } }))
 
+test('有采样节点但完成时没有采样媒体，单独记录缺失而不影响成片', { timeout: 2000 }, async () => {
+  const originalFetch = globalThis.fetch
+  const state = initial()
+  const workflow = JSON.parse(definition) as { samplingNodes: string[]; capabilities: { sampling: boolean } }
+  workflow.samplingNodes = ['preview']
+  workflow.capabilities.sampling = true
+  const logs: TaskDiagnostic[] = []
+  globalThis.fetch = async (endpoint) => new Response(JSON.stringify(String(endpoint).endsWith('/query')
+    ? { taskId: state.taskId, status: 'SUCCESS', results: [{ nodeId: 'high', url: 'https://rh-images.xiaoyaoyou.com/final.mp4', outputType: 'mp4' }] }
+    : { code: 0, data: [] }))
+  let session: RunningHubPreviewSession | undefined
+  try {
+    await new Promise<void>((resolve) => {
+      session = new RunningHubPreviewSession({ initial: state, credential: 'test-only-key', workflowDefinition: JSON.stringify(workflow), emit: () => undefined,
+        diagnose: (entry) => { logs.push(entry); if (entry.reason === 'missing-sampling') resolve() } })
+      session.start()
+    })
+    assert.equal(session!.snapshot().remoteStatus, 'success')
+    assert.ok(session!.snapshot().final)
+    assert.equal(session!.snapshot().sampling, null)
+    assert.ok(logs.some((entry) => entry.event === 'workflow' && entry.role === 'sampling' && entry.nodeId === 'preview'))
+    assert.equal(JSON.stringify(logs).includes('test-only-key'), false)
+  } finally { session?.stop(); globalThis.fetch = originalFetch }
+})
+
 test('历史 Upscale 错存为低清时按原前缀纠正成片并移除重复低清', { timeout: 2000 }, async () => {
   const originalFetch = globalThis.fetch
   const state = initial()

@@ -84,6 +84,7 @@ export class RunningHubPreviewSession implements PreviewSession {
         this.workflow = inspectWorkflowPreview(result)
       }
       this.update({ capabilities: this.workflow.capabilities })
+      for (const nodeId of this.workflow.samplingNodes) this.log({ event: 'workflow', nodeId, role: 'sampling' })
       for (const output of this.workflow.videoOutputs) this.log({ event: 'workflow', nodeId: output.nodeId, role: output.kind })
     } catch {
       if (this.stopped) return
@@ -232,6 +233,7 @@ export class RunningHubPreviewSession implements PreviewSession {
             : '任务已完成，平台暂未返回可识别的视频地址' : ''
         })
         this.log({ event: 'summary', reason: this.state.final ? 'complete' : 'missing-final', count: this.state.resultVideos?.length ?? 0 })
+        if (this.workflow?.capabilities.sampling && !this.state.sampling) this.log({ event: 'sampling', reason: 'missing-sampling', count: 0 })
         const missingMedia = remoteStatus === 'success' && (this.workflow?.capabilities.final && !this.state.final || this.workflow?.capabilities.draft && !this.state.draft)
         if (missingMedia && ++this.resultAttempts < 3) {
           this.timer = setTimeout(() => void this.poll(), 5000)
@@ -257,10 +259,12 @@ export class RunningHubPreviewSession implements PreviewSession {
         if (this.stopped || this.snapshot().cancelState === 'requested') return
         const connection = socketSchema.safeParse(legacy.data)
         const url = connection.success ? connection.data.netWssUrl : null
+        this.log({ event: 'request', endpoint: 'outputs', platformCode: legacy.code })
         if (url) {
           if (!allowedSocketUrl(url)) throw new Error('平台返回的监听域名尚未获准')
           this.openSocket(url)
         } else {
+          this.log({ event: 'socket', reason: connection.success ? 'missing-socket' : 'schema' })
           this.update({ connection: 'connecting', stage: remoteStatus === 'queued' ? '远端排队中' : '等待平台分配预览连接' })
         }
       }
@@ -301,15 +305,19 @@ export class RunningHubPreviewSession implements PreviewSession {
       if (this.stopped || this.socket !== socket) return
       if (this.handshakeTimer) clearTimeout(this.handshakeTimer)
       this.connectedAt = Date.now()
+      this.log({ event: 'socket', reason: 'accepted' })
       this.update({ connection: 'connected', notice: '', stage: '等待工作流预览' })
     })
     socket.addEventListener('message', (event) => {
-      if (this.stopped || this.socket !== socket || typeof event.data !== 'string' || event.data.length > 25 * 1024 * 1024) return
+      if (this.stopped || this.socket !== socket) return
+      if (typeof event.data !== 'string') { this.log({ event: 'socket', reason: 'unsupported-type' }); return }
+      if (event.data.length > 25 * 1024 * 1024) { this.log({ event: 'socket', reason: 'oversized' }); return }
       try { this.receive(JSON.parse(event.data) as unknown) } catch { /* 畸形事件不改变已有媒体和任务状态。 */ }
     })
     const disconnected = () => {
       if (this.stopped || this.socket !== socket || terminal.has(this.state.remoteStatus) || this.state.cancelState === 'requested') return
       if (this.handshakeTimer) clearTimeout(this.handshakeTimer)
+      this.log({ event: 'socket', reason: 'closed' })
       this.update({ connection: 'reconnecting', notice: '预览连接已断开，保留最近画面并等待重连' })
     }
     socket.addEventListener('error', disconnected)
@@ -324,6 +332,7 @@ export class RunningHubPreviewSession implements PreviewSession {
     if (typeof data.taskId === 'string' && data.taskId !== this.state.taskId) return
     if (type === 'kj_preview_override') {
       const sampling = this.workflow ? parseSampling(data, this.workflow) : null
+      this.log({ event: 'sampling', reason: sampling ? 'accepted' : 'schema', count: sampling?.media ? 1 : 0 })
       if (!sampling) return
       this.update({ step: sampling.step, total: sampling.total, samplingStep: sampling.step, samplingTotal: sampling.total,
         ...(!this.state.runningObservedAt && !terminal.has(this.state.remoteStatus) ? { runningObservedAt: new Date().toISOString() } : {}),
