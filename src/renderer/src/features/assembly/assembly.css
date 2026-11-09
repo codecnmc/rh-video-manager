@@ -66,18 +66,18 @@
 .assembly-switchbar > button { flex-shrink: 0; }
 .assembly-switchbar > label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .assembly-switchbar [data-slot='select-trigger'] { width: 128px; }
-.assembly-editing-area { display: grid; grid-template-columns: 320px minmax(240px, 1fr) 380px; flex: 1 1 0; min-height: 260px; overflow: hidden; }
+.assembly-editing-area { display: grid; grid-template-columns: minmax(0, 9fr) 640px minmax(0, 7fr); flex: 1 1 0; min-height: 260px; overflow: hidden; }
 .assembly-sources { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .assembly-sources > .assembly-pane-heading { padding: 0 12px; border-bottom: 1px solid var(--border); min-height: 47px; }
-.assembly-source-layout { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.assembly-source-categories { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-bottom: 1px solid var(--border); background: #f7f9fa; flex-shrink: 0; }
-.assembly-source-kind, .assembly-source-scopes { display: flex; gap: 4px; }
-.assembly-source-scopes { border-top: 1px solid var(--border); padding-top: 4px; }
+.assembly-source-layout { display: grid; grid-template-columns: 106px minmax(0, 1fr); flex: 1; min-height: 0; }
+.assembly-source-categories { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding: 12px 7px; border-right: 1px solid var(--border); background: #f7f9fa; }
+.assembly-source-kind, .assembly-source-scopes { display: flex; flex-direction: column; gap: 4px; }
+.assembly-source-scopes { border-top: 1px solid var(--border); padding-top: 12px; }
 .assembly-source-categories button { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 34px; padding: 7px; border-radius: 4px; font-size: 12px; text-align: left; color: var(--muted); }
 .assembly-source-categories button > span { margin-left: auto; font-size: 10px; font-variant-numeric: tabular-nums; }
 .assembly-source-categories button:hover { background: #edf1f3; }
 .assembly-source-categories button[aria-pressed='true'] { background: var(--primary-soft); color: #20777c; font-weight: 600; }
-.assembly-source-content { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: 10px; padding: 12px 12px 0; }
+.assembly-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 10px; padding: 12px 12px 0; }
 .assembly-pane-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 43px; flex-shrink: 0; }
 .assembly-pane-heading > span { font-size: 11px; }
 .assembly-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -89,11 +89,11 @@
 .assembly-source-search > svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
 .assembly-source-search input { padding-left: 32px; font-size: 12px; }
 .assembly-source-filter { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-shrink: 0; color: var(--muted); font-size: 11px; }
-.assembly-source-list { overflow-y: auto; flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 14px 10px; padding: 3px 3px 12px; scrollbar-gutter: stable; }
+.assembly-source-list { overflow-x: hidden; overflow-y: auto; flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); align-content: start; gap: 14px 10px; padding: 3px 3px 12px; scrollbar-gutter: stable; }
 .assembly-source-card { position: relative; min-width: 0; border-radius: 5px; }
 .assembly-source-select { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; color: inherit; cursor: pointer; border-radius: 5px; }
-.assembly-source-cover { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border: 2px solid transparent; border-radius: 5px; background: #e9eef0; display: grid; place-items: center; }
-.assembly-source-cover video { position: absolute; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.assembly-source-cover { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border: 2px solid transparent; border-radius: 5px; background: #e9eef0; display: grid; place-items: center; }
+.assembly-source-cover video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .assembly-source-cover.is-audio { background: #eaf0e7; color: #6a8263; }
 .assembly-source-cover.is-audio > svg { font-size: 25px; }
 .assembly-source-card:hover .assembly-source-cover { border-color: #a3bfc2; }
@@ -138,8 +138,8 @@
 .assembly-preview-caption .assembly-checkbox input { flex: 0 0 16px; margin: 0; padding: 0; }
 .assembly-preview-caption .button-row { display: flex; flex-wrap: wrap; gap: 4px; flex: 0 1 auto; }
 .assembly-preview-caption .button-row button { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.assembly-inspector { border-left: 1px solid var(--border); min-height: 0; display: flex; flex-direction: column; }
-.assembly-inspector-body { padding: 0 14px 14px; overflow-y: auto; min-height: 0; flex: 1; }
+.assembly-inspector { border-left: 1px solid var(--border); min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.assembly-inspector-body { padding: 0 14px 14px; min-width: 0; overflow-x: hidden; overflow-y: auto; min-height: 0; flex: 1; }
 .assembly-inspector-body > .assembly-form { padding-top: 16px; }
 .assembly-sound { border: 1px solid var(--border); border-radius: 5px; margin-bottom: 12px; padding: 10px; }
 .assembly-sound-missing, .assembly-sound-review { border-color: #ead7ac; }
@@ -244,13 +244,11 @@
 .assembly-waveform { position: absolute; inset: 1px 7px; width: calc(100% - 14px); height: calc(100% - 2px); pointer-events: none; opacity: .24; }
 .assembly-waveform + .assembly-block-select { position: relative; z-index: 1; }
 @media (max-width: 1450px) {
-  .assembly-editing-area { grid-template-columns: 260px minmax(200px, 1fr) 340px; }
   .assembly-editor-title { flex-basis: 180px; }
   .assembly-capability { max-width: 28px; overflow: hidden; white-space: nowrap; }
   .assembly-capability > svg { flex-shrink: 0; }
 }
 @media (max-width: 1250px) {
-  .assembly-editing-area { grid-template-columns: 220px minmax(200px, 1fr) 300px; }
   .assembly-source-layout { grid-template-columns: 96px minmax(0, 1fr); }
   .assembly-editor-heading { flex-wrap: wrap; }
   .assembly-preview { padding-right: 12px; padding-left: 12px; }
@@ -263,9 +261,7 @@
 }
 @media (max-width: 1000px) {
   .assembly-editor { overflow-y: auto; }
-  .assembly-editing-area { flex: 0 0 620px; min-height: 620px; grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: 350px 270px; overflow: visible; }
-  .assembly-sources { grid-row: 1 / 3; }
-  .assembly-inspector { grid-column: 2; grid-row: 2; border-top: 1px solid var(--border); }
+  .assembly-editing-area { flex: 0 0 620px; min-height: 620px; }
   .assembly-inspector-body { padding: 8px 14px; }
   .assembly-timeline-section { flex-shrink: 0; }
   .assembly-capability { display: none; }
@@ -282,10 +278,6 @@
   .assembly-editor-heading { padding: 10px; }
   .assembly-editor-title h1 { font-size: 16px; }
   .assembly-switchbar { padding: 8px; }
-  .assembly-editing-area { display: flex; flex-direction: column; flex-basis: auto; min-height: auto; }
-  .assembly-sources { height: 360px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
-  .assembly-preview { min-height: 340px; flex-shrink: 0; }
-  .assembly-inspector { height: 380px; flex-shrink: 0; }
   .assembly-timeline-toolbar { flex-wrap: wrap; }
   .assembly-zoom { max-width: 140px; }
   .assembly-transport .assembly-volume { display: block; }
