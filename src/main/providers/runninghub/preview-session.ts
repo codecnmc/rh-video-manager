@@ -213,7 +213,7 @@ export class RunningHubPreviewSession implements PreviewSession {
           this.log({ event: 'request', endpoint: 'outputs', platformCode: legacy.code, count: outputs.success ? outputs.data.length : 0 })
           if (legacy.code === 0 && outputs.success) {
             const times = new Set(outputs.data.flatMap((output) => output.taskCostTime && /^\d+(?:\.\d+)?$/.test(output.taskCostTime)
-              && Number.isFinite(Number(output.taskCostTime)) ? [Number(output.taskCostTime)] : []))
+              && Number.isFinite(Number(output.taskCostTime)) && Number(output.taskCostTime) > 0 ? [Number(output.taskCostTime)] : []))
             if (times.size === 1) this.update({ executionSeconds: [...times][0] })
             for (const output of outputs.data) {
               const role = this.workflow?.videoOutputs.find((item) => item.nodeId === output.nodeId)?.kind

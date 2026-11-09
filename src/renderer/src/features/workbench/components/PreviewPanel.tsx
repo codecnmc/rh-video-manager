@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { SelectField, SelectOption } from '@/components/ui/select-field'
 import { desktop, unwrap } from '@/shared/lib/desktop'
 import { recordConsumptionLabel, summarizeDraftConsumption } from '../draft-consumption'
-import { PreviewVideoPlayer } from './PreviewVideoPlayer'
+import { PreviewVideoPlayer } from '@/shared/components/PreviewVideoPlayer'
+import { visibleEarlyPreviews } from '../preview-visibility'
 
 const labels: Record<PreviewKind, string> = { sampling: '实时采样', draft: '低清预览', final: '最终成片' }
 
@@ -62,7 +63,7 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
   const [duration, setDuration] = useState<{ source: string; seconds: number } | null>(null)
   const seconds = media && duration?.source === media.source ? duration.seconds : null
   const noSamplingAtEnd = kind === 'sampling' && !media && preview && ['success', 'failed', 'cancelled'].includes(preview.remoteStatus)
-  const hasConsumption = preview?.consumption?.coins != null && !preview.consumption.conflictingFields.includes('coins') && /^\d{8,30}$/.test(preview.taskId)
+  const hasConsumption = preview?.consumption?.points != null && !preview.consumption.conflictingFields.includes('points') && /^\d{8,30}$/.test(preview.taskId)
   async function download() {
     if (!preview) return
     setDownloading(true)
@@ -106,6 +107,7 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
 export function PreviewPanel({ preview, predecessor, title, onNotice, records, selectedRecord, onSelectRecord }: PreviewPanelProps) {
   const [outputPending, setOutputPending] = useState(false)
   const consumption = summarizeDraftConsumption(records)
+  const earlyPreviews = visibleEarlyPreviews(preview)
   const outputs = (preview?.resultVideos ?? []).map((output, index) => ({ output, index }))
     .filter(({ output }) => output.source !== preview?.draft?.source && output.source !== preview?.final?.source)
   async function outputAction(index: number, action: 'copy' | 'download') {
@@ -118,8 +120,8 @@ export function PreviewPanel({ preview, predecessor, title, onNotice, records, s
   }
   return <section className="review-pane">
     <div className="pane-toolbar preview-toolbar"><h2>{title}</h2>
-      {consumption.knownCoins !== null
-        ? <div className="draft-consumption" title={`草稿历史生成的已知耗币合计，共 ${consumption.knownCount} 笔`}><span className="muted">累计</span> <strong>{consumption.knownCoins}</strong> <span className="muted">RH 币</span></div>
+      {consumption.knownPoints !== null
+        ? <div className="draft-consumption" title={`草稿历史生成的已知消耗积分合计，共 ${consumption.knownCount} 笔`}><span className="muted">累计</span> <strong>{consumption.knownPoints}</strong> <span className="muted">积分</span></div>
         : <span className="muted">{preview ? '远端任务' : '视频预览'}</span>}
     </div>
     <div className="generation-records"><label htmlFor="generation-record">生成记录（{records.length}）</label>
@@ -129,15 +131,15 @@ export function PreviewPanel({ preview, predecessor, title, onNotice, records, s
       </SelectField>
     </div>
     <PreviewSlot key={`${preview?.id}-final`} preview={preview} kind="final" onNotice={onNotice} />
-    <ContinuityPreview key={`${preview?.id}-${predecessor?.id}`} predecessor={predecessor} sampling={preview?.sampling ?? null} onNotice={onNotice} />
+    {earlyPreviews.includes('sampling') && predecessor && <ContinuityPreview key={`${preview?.id}-${predecessor?.id}`} predecessor={predecessor} sampling={preview?.sampling ?? null} onNotice={onNotice} />}
     <div className="early-previews">
-      {(['sampling', 'draft'] as const).map((value) => <PreviewSlot key={`${preview?.id}-${value}`} preview={preview} kind={value} onNotice={onNotice} />)}
+      {earlyPreviews.map((value) => <PreviewSlot key={`${preview?.id}-${value}`} preview={preview} kind={value} onNotice={onNotice} />)}
     </div>
     {preview?.notice && <p className="inline-warning">{preview.notice}</p>}
     {outputs.length > 0 && <Disclosure className="platform-outputs" open>
       <summary>平台视频输出（未分类 {outputs.length}）</summary>
       {outputs.map(({ output, index }) => <div className="platform-output" key={output.source}>
-        <video src={output.source} controls playsInline preload="metadata" />
+        <MediaView media={output} kind="final" onDuration={() => undefined} />
         <div className="media-footer"><span className="muted">视频输出 {index + 1}</span><div className="button-row">
           <Button variant="ghost" size="icon" title="复制输出 URL" aria-label="复制输出 URL" disabled={outputPending} onClick={() => void outputAction(index, 'copy')}><FontAwesomeIcon icon={faLink} /></Button>
           <Button variant="ghost" size="icon" title="下载视频输出" aria-label="下载视频输出" disabled={outputPending} onClick={() => void outputAction(index, 'download')}><FontAwesomeIcon icon={faDownload} /></Button>

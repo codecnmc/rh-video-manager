@@ -9,7 +9,7 @@ interface DialogProps extends PropsWithChildren { title: string; onClose: () => 
 export function Dialog({ title, onClose, children, className = '' }: DialogProps) {
   return <DialogPrimitive.Root open onOpenChange={(open) => { if (!open) onClose() }}><DialogPrimitive.Portal>
     <DialogPrimitive.Overlay className="ui-dialog-overlay" />
-    <DialogPrimitive.Content className={`dialog ${className}`} aria-describedby={undefined} onSubmit={(event) => event.stopPropagation()}>
+    <DialogPrimitive.Content className={`dialog ${className}`} aria-describedby={undefined} onEscapeKeyDown={(event) => { if (document.fullscreenElement) event.preventDefault() }} onSubmit={(event) => event.stopPropagation()}>
     <div className="dialog-heading"><DialogPrimitive.Title asChild><h2>{title}</h2></DialogPrimitive.Title>
       <Button variant="ghost" size="icon" title="关闭" aria-label="关闭" onClick={onClose}><FontAwesomeIcon icon={faXmark} /></Button>
     </div>

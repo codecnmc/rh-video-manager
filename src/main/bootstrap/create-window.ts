@@ -1,5 +1,7 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, nativeImage } from 'electron'
+import { pathToFileURL } from 'node:url'
+import { canUseMediaFullscreen } from './fullscreen-permission'
 
 export async function createWindow(options?: { assembly?: true; workbench?: true; onCreated: (window: BrowserWindow) => void }): Promise<BrowserWindow> {
   const rendererUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
@@ -50,10 +52,17 @@ export async function createWindow(options?: { assembly?: true; workbench?: true
   window.on('maximize', sendWindowState)
   window.on('unmaximize', sendWindowState)
 
-  window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
-    callback(false)
+  const rendererDocumentUrl = rendererUrl ?? pathToFileURL(join(__dirname, '../renderer/index.html')).href
+  window.webContents.session.setPermissionRequestHandler((contents, permission, callback, details) => {
+    callback(!contents.isDestroyed() && BrowserWindow.fromWebContents(contents) !== null && canUseMediaFullscreen({
+      permission, requestingUrl: details.requestingUrl, topLevelUrl: contents.getURL(), rendererDocumentUrl, isMainFrame: details.isMainFrame
+    }))
   })
-  window.webContents.session.setPermissionCheckHandler(() => false)
+  window.webContents.session.setPermissionCheckHandler((contents, permission, _origin, details) => {
+    if (!contents || contents.isDestroyed() || !BrowserWindow.fromWebContents(contents)) return false
+    return canUseMediaFullscreen({ permission, requestingUrl: details.requestingUrl ?? (details.isMainFrame ? contents.getURL() : ''),
+      topLevelUrl: contents.getURL(), rendererDocumentUrl, isMainFrame: details.isMainFrame })
+  })
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event) => event.preventDefault())
   if (options?.assembly) window.on('page-title-updated', (event) => event.preventDefault())

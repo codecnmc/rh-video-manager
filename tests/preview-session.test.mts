@@ -115,6 +115,28 @@ test('被拒域名单独记日志并明确提示，不再宣称平台未返回',
   } finally { session?.stop(); globalThis.fetch = originalFetch }
 })
 
+test('平台耗时零占位不写入新记录，也不覆盖已有有效耗时', { timeout: 2000 }, async () => {
+  const originalFetch = globalThis.fetch
+  try {
+    for (const executionSeconds of [undefined, 25]) {
+      const state = { ...initial(), ...(executionSeconds === undefined ? {} : { executionSeconds }) }
+      const outputs = [{ nodeId: 'low', url: 'https://rh-images.xiaoyaoyou.com/low.mp4', outputType: 'mp4' }, { nodeId: 'high', url: 'https://rh-images.xiaoyaoyou.com/high.mp4', outputType: 'mp4' }]
+      globalThis.fetch = async (url) => new Response(JSON.stringify(String(url).endsWith('/query')
+        ? { taskId: state.taskId, status: 'SUCCESS', results: outputs }
+        : { code: 0, data: outputs.map((item) => ({ nodeId: item.nodeId, fileUrl: item.url, fileType: 'mp4', taskCostTime: '0' })) }))
+      let session: RunningHubPreviewSession | undefined
+      try {
+        await new Promise<void>((resolve) => {
+          session = new RunningHubPreviewSession({ initial: state, credential: 'test-only-key', workflowDefinition: definition, emit: () => undefined,
+            diagnose: (entry) => { if (entry.event === 'summary') resolve() } })
+          session.start()
+        })
+        assert.equal(session!.snapshot().executionSeconds, executionSeconds)
+      } finally { session?.stop() }
+    }
+  } finally { globalThis.fetch = originalFetch }
+})
+
 test('V2 确认终态后按原节点快照接收 UUID 地址，并记录平台耗时', { timeout: 2000 }, async () => {
   const originalFetch = globalThis.fetch
   const state = initial()

@@ -43,6 +43,16 @@ test('已取消使用终态时间；正常运行及取消拒绝仍计时，平�
   assert.equal(taskTiming({ ...cancelled, executionSeconds: 25 }, start + 60000).seconds, 25)
 })
 
+test('平台零占位不能抹掉完成耗时，旧记录优先观测时间，再回退含排队总耗时', () => {
+  const state = { ...task('success'), executionSeconds: 0, submittedAt: '2026-11-09T00:00:00.000Z', runningObservedAt: '2026-11-09T00:01:00.000Z', completedAt: '2026-11-09T00:03:00.000Z' }
+  assert.equal(taskTiming(state, Date.now()).seconds, 120)
+  assert.equal(taskTiming(state, Date.now()).label, '观测执行耗时')
+  assert.equal(taskTiming({ ...state, runningObservedAt: undefined }, Date.now()).seconds, 180)
+  assert.equal(taskTiming({ ...state, runningObservedAt: undefined }, Date.now()).label, '任务总耗时（含排队）')
+  assert.equal(taskTiming({ ...state, runningObservedAt: undefined, submittedAt: undefined }, Date.now()).seconds, null)
+  assert.equal(taskTiming({ ...state, executionSeconds: 90 }, Date.now()).seconds, 90)
+})
+
 test('浮窗默认关闭，打开不修改草稿选择，切换项目或进入完整队列时关闭', () => {
   const initial = useWorkbenchUi.getState()
   assert.equal(initial.queueOpen, false)
