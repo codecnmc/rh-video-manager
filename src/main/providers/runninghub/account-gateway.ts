@@ -5,7 +5,8 @@ import { accountQueueSchema, type AccountQueue } from '../../../shared/contracts
 const decimal = z.string().regex(/^-?\d{1,30}(?:\.\d{1,8})?$/)
 const balanceSchema = z.object({
   code: z.literal(0), data: z.object({
-    remainCoins: decimal, currentTaskCounts: z.string().regex(/^\d{1,6}$/),
+    // 数字与十进制字符串统一为内部定点计算所用字符串。
+    remainPoint: z.union([decimal, z.number().finite().transform(String).pipe(decimal)]), currentTaskCounts: z.string().regex(/^\d{1,6}$/),
     remainMoney: decimal.nullable(), currency: z.string().regex(/^[A-Z]{3,10}$/).nullable(), apiType: z.string().max(100)
   })
 })
@@ -54,7 +55,7 @@ export class RunningHubAccountGateway implements AccountGateway {
       body: JSON.stringify({ apikey: key })
     })
     const { data } = balanceSchema.parse(await readResponse(response))
-    return { coins: data.remainCoins, money: data.remainMoney, currency: data.currency,
+    return { points: data.remainPoint, money: data.remainMoney, currency: data.currency,
       runningTasks: Number(data.currentTaskCounts), apiType: data.apiType }
   }
 

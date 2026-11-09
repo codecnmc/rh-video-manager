@@ -28,7 +28,7 @@ export class AccountService {
     const currencies = new Set(synced.flatMap((account) => account.balance?.currency && account.balance.money !== null ? [account.balance.currency] : []))
     return {
       accounts, enabledCount: enabled.length, syncedCount: synced.length,
-      totalCoins: synced.length ? sumDecimals(synced.map((account) => account.balance?.coins ?? '0')) : null,
+      totalPoints: synced.length ? sumDecimals(synced.map((account) => account.balance?.points ?? '0')) : null,
       wallets: [...currencies].map((currency) => ({ currency, amount: sumDecimals(synced.flatMap((account) =>
         account.balance?.currency === currency && account.balance.money !== null ? [account.balance.money] : [])) })),
       concurrency: enabled.reduce((total, account) => total + account.concurrency, 0),

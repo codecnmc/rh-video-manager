@@ -22,7 +22,7 @@ test('额度按十进制定点累加，不引入浮点误差', () => {
 })
 
 test('拒绝重复账号标识或 Key；公开快照不含凭据', async () => {
-  const { service } = setup({ status: async () => ({ coins: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }) })
+  const { service } = setup({ status: async () => ({ points: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }) })
   const input = { id: null, name: '账号 A', identity: 'identity-a', apiKey: 'test-key-a-12345', concurrency: 2, enabled: true }
   const first = service.save(input).accounts[0]!
   assert.throws(() => service.save({ ...input, apiKey: 'another-test-key' }))
@@ -38,7 +38,7 @@ test('拒绝重复账号标识或 Key；公开快照不含凭据', async () => {
 test('汇总排除失败及停用账号，钱包不跨币种相加', async () => {
   const { service } = setup({ status: async (key) => {
     if (key === 'test-key-failed') throw new Error('offline')
-    return { coins: '0.1', money: '2.3', currency: key.endsWith('usd') ? 'USD' : 'CNY', runningTasks: 1, apiType: 'test' }
+    return { points: '0.1', money: '2.3', currency: key.endsWith('usd') ? 'USD' : 'CNY', runningTasks: 1, apiType: 'test' }
   }, queue: async (key) => {
     if (key === 'test-key-failed') throw new Error('offline')
     return { ...emptyQueue, runningCount: 1, totalCurrentTasks: 1 }
@@ -46,7 +46,7 @@ test('汇总排除失败及停用账号，钱包不跨币种相加', async () =>
   for (const suffix of ['cny', 'usd', 'failed', 'disabled']) service.save({ id: null, name: suffix, identity: suffix,
     apiKey: `test-key-${suffix}`, concurrency: 2, enabled: suffix !== 'disabled' })
   const pool = await service.refresh(null)
-  assert.equal(pool.totalCoins, '0.2')
+  assert.equal(pool.totalPoints, '0.2')
   assert.equal(pool.enabledCount, 3)
   assert.equal(pool.syncedCount, 2)
   assert.equal(pool.concurrency, 8)
@@ -56,13 +56,13 @@ test('汇总排除失败及停用账号，钱包不跨币种相加', async () =>
 })
 
 test('同步中的旧 Key 响应不得覆盖替换后的账号', async () => {
-  let resolve: (value: { coins: string; money: null; currency: null; runningTasks: number; apiType: string }) => void = () => undefined
+  let resolve: (value: { points: string; money: null; currency: null; runningTasks: number; apiType: string }) => void = () => undefined
   const { service } = setup({ status: () => new Promise((done) => { resolve = done }) })
   const input = { id: null, name: '账号', identity: 'identity', apiKey: 'old-test-key', concurrency: 1, enabled: true }
   const account = service.save(input).accounts[0]!
   const refreshing = service.refresh(account.id)
   service.save({ ...input, id: account.id, apiKey: 'new-test-key' })
-  resolve({ coins: '99', money: null, currency: null, runningTasks: 0, apiType: 'test' })
+  resolve({ points: '99', money: null, currency: null, runningTasks: 0, apiType: 'test' })
   await refreshing
   assert.equal(service.list().accounts[0]?.balance, null)
   assert.equal(service.list().accounts[0]?.queue, null)
@@ -70,7 +70,7 @@ test('同步中的旧 Key 响应不得覆盖替换后的账号', async () => {
 })
 
 test('未提供钱包金额时不合成零余额钱包', async () => {
-  const { service } = setup({ status: async () => ({ coins: '1', money: null, currency: 'USD', runningTasks: 0, apiType: 'test' }) })
+  const { service } = setup({ status: async () => ({ points: '1', money: null, currency: 'USD', runningTasks: 0, apiType: 'test' }) })
   service.save({ id: null, name: '账号', identity: 'identity', apiKey: 'test-only-key', concurrency: 1, enabled: true })
   assert.deepEqual((await service.refresh(null)).wallets, [])
 })
@@ -82,7 +82,7 @@ test('额度失败仍可同步队列，并将远端并发更新到本地', async
   })
   service.save({ id: null, name: '账号', identity: 'identity', apiKey: 'test-only-key', concurrency: 2, enabled: true })
   const pool = await service.refresh(null)
-  assert.equal(pool.totalCoins, null)
+  assert.equal(pool.totalPoints, null)
   assert.equal(pool.syncedCount, 0)
   assert.equal(pool.queueSyncedCount, 1)
   assert.equal(pool.concurrency, 30)
@@ -97,7 +97,7 @@ test('额度失败仍可同步队列，并将远端并发更新到本地', async
 test('队列失败保留旧快照但排除汇总，不影响额度', async () => {
   let failed = false
   const { service } = setup({
-    status: async () => ({ coins: '10', money: null, currency: null, runningTasks: 99, apiType: 'test' }),
+    status: async () => ({ points: '10', money: null, currency: null, runningTasks: 99, apiType: 'test' }),
     queue: async () => {
       if (failed) throw new Error('sensitive remote error')
       return { ...emptyQueue, concurrentLimit: 1, runningCount: 2, totalCurrentTasks: 2 }
@@ -109,7 +109,7 @@ test('队列失败保留旧快照但排除汇总，不影响额度', async () =>
   assert.equal(first.runningTasks, 2)
   failed = true
   const pool = await service.refresh(null)
-  assert.equal(pool.totalCoins, '10')
+  assert.equal(pool.totalPoints, '10')
   assert.equal(pool.queueSyncedCount, 0)
   assert.equal(pool.remoteConcurrency, null)
   assert.equal(pool.runningTasks, null)
@@ -127,7 +127,7 @@ test('同一账号的同步合并，删除账号后丢弃迟到队列响应', as
   let calls = 0
   const wait = new Promise<void>((resolve) => { finish = resolve })
   const { service } = setup({
-    status: async () => ({ coins: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }),
+    status: async () => ({ points: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }),
     queue: async () => { calls += 1; await wait; return { ...emptyQueue } }
   })
   const account = service.save({ id: null, name: '账号', identity: 'identity', apiKey: 'test-only-key', concurrency: 1, enabled: true }).accounts[0]!
@@ -144,7 +144,7 @@ test('并发按远端升降，支持零与大于一百；旧编辑输入不能�
   let limit = 1
   let failed = false
   const { service, rows } = setup({
-    status: async () => ({ coins: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }),
+    status: async () => ({ points: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }),
     queue: async () => {
       if (failed) throw new Error('offline')
       return { ...emptyQueue, concurrentLimit: limit }

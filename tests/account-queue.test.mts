@@ -57,7 +57,7 @@ test('旧 SQLite 账号兼容读取，同步的并发与队列均持久化并可
     repository.save({ ...account, queue: parseQueueStatus({ code: 0, data }), queueStatus: 'ready', queueCheckedAt: '2026-10-19T00:00:00Z' })
     assert.equal(repository.list()[0]?.queue?.concurrentLimit, 30)
     const service = new AccountService(repository, { seal: () => { throw new Error('not used') }, open: () => 'test-only-key' }, {
-      status: async () => ({ coins: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }),
+      status: async () => ({ points: '1', money: null, currency: null, runningTasks: 0, apiType: 'test' }),
       queue: async () => parseQueueStatus({ code: 0, data })
     }, () => { throw new Error('not used') })
     await service.refresh(legacy.id)

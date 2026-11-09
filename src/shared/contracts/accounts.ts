@@ -8,7 +8,7 @@ export const saveAccountSchema = z.object({
 }).refine((value) => value.id !== null || value.apiKey.length >= 10, { path: ['apiKey'], message: '请输入 API Key' })
 export type SaveAccount = z.infer<typeof saveAccountSchema>
 export interface AccountBalance {
-  coins: string; money: string | null; currency: string | null; runningTasks: number; apiType: string
+  points: string; money: string | null; currency: string | null; runningTasks: number; apiType: string
 }
 export const accountQueueSchema = z.object({
   apiKeyType: z.string().min(1).max(100),
@@ -24,7 +24,7 @@ export interface Account {
   queue: AccountQueue | null; queueStatus: 'unknown' | 'ready' | 'error'; queueCheckedAt: string | null; queueError: string
 }
 export interface AccountPool {
-  accounts: Account[]; enabledCount: number; syncedCount: number; totalCoins: string | null
+  accounts: Account[]; enabledCount: number; syncedCount: number; totalPoints: string | null
   wallets: { currency: string; amount: string }[]; concurrency: number; runningTasks: number | null
   queueSyncedCount: number; remoteConcurrency: number | null; queuedTasks: number | null
   totalCurrentTasks: number | null; availableSlots: number | null

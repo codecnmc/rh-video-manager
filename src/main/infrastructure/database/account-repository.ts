@@ -7,8 +7,8 @@ const accountSchema = z.object({
   id: z.string().uuid(), name: z.string(), identity: z.string(), keyHint: z.string(),
   concurrency: z.number().int(), enabled: z.boolean(), status: z.enum(['unknown', 'ready', 'error']),
   checkedAt: z.string().nullable(), error: z.string(), balance: z.object({
-    coins: z.string(), money: z.string().nullable(), currency: z.string().nullable(), runningTasks: z.number(), apiType: z.string()
-  }).nullable(),
+    points: z.string(), money: z.string().nullable(), currency: z.string().nullable(), runningTasks: z.number(), apiType: z.string()
+  }).nullable().or(z.object({ coins: z.string() }).transform(() => null)),
   queue: accountQueueSchema.nullable().default(null),
   queueStatus: z.enum(['unknown', 'ready', 'error']).default('unknown'),
   queueCheckedAt: z.string().nullable().default(null), queueError: z.string().default('')
@@ -19,7 +19,12 @@ export class SqliteAccountRepository implements AccountRepository {
   list(): AccountRecord[] {
     return this.database.prepare('SELECT data, key_cipher, key_fingerprint FROM accounts ORDER BY rowid').all().map((row) => {
       if (!(row.key_cipher instanceof Uint8Array)) throw new Error('账号凭据格式不正确')
-      return { ...accountSchema.parse(JSON.parse(String(row.data)) as unknown), cipher: row.key_cipher, fingerprint: String(row.key_fingerprint) }
+      const raw: unknown = JSON.parse(String(row.data))
+      const legacyBalance = z.object({ balance: z.object({ coins: z.string(), points: z.undefined() }) }).safeParse(raw).success
+      const account = accountSchema.parse(raw)
+      // 旧 RH 币快照不可换算为积分，等待重新同步；保留账号及队列配置。
+      return { ...account, ...(legacyBalance ? { status: 'unknown' as const, checkedAt: null, error: '' } : {}),
+        cipher: row.key_cipher, fingerprint: String(row.key_fingerprint) }
     })
   }
   save(record: AccountRecord): void {

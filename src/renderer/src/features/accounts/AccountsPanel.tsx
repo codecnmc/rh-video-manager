@@ -17,7 +17,7 @@ const syncTime = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-di
 
 function AccountSummary({ pool }: { pool: AccountPool | undefined }) {
   const metrics: { label: string; value: string | number | null | undefined; unit?: string; title?: string }[] = [
-    { label: 'RH 币余额', value: pool?.totalCoins, unit: 'RH' },
+    { label: '积分余额', value: pool?.totalPoints, unit: '积分' },
     ...(pool?.wallets.map((wallet) => ({ label: '钱包余额', value: wallet.amount, unit: wallet.currency })) ?? []),
     { label: '本地并发上限', value: pool?.concurrency },
     { label: 'Key 远端并发上限', value: pool?.remoteConcurrency },
@@ -102,12 +102,12 @@ export function AccountsPanel({ onDirty, onNotice, renderWorkflows }: {
     {accounts.error && <p className="field-error">{accounts.error.message}</p>}
     <AccountSummary pool={pool} />
     <div className={`management-layout ${editing !== undefined ? 'editing' : ''}`}><div className="management-table-scroll"><Table className="management-table account-table"><TableHeader><TableRow>
-      <TableHead scope="col">账号</TableHead><TableHead scope="col">Key / 类型</TableHead><TableHead scope="col">RH 币 / 钱包</TableHead><TableHead scope="col">并发上限</TableHead><TableHead scope="col">远端队列</TableHead><TableHead scope="col">同步状态</TableHead><TableHead scope="col">操作</TableHead></TableRow></TableHeader><TableBody>
+      <TableHead scope="col">账号</TableHead><TableHead scope="col">Key / 类型</TableHead><TableHead scope="col">积分 / 钱包</TableHead><TableHead scope="col">并发上限</TableHead><TableHead scope="col">远端队列</TableHead><TableHead scope="col">同步状态</TableHead><TableHead scope="col">操作</TableHead></TableRow></TableHeader><TableBody>
       {pool?.accounts.map((account) => <TableRow key={account.id}><TableCell><div className="account-identity"><strong title={account.name}>{account.name}</strong><small title={account.identity}>{account.identity}</small></div>
         <label className="check-field account-enabled"><CheckboxField  checked={account.enabled} aria-label={`${account.enabled ? '停用' : '启用'}账号 ${account.name}`} disabled={busy !== null || editing !== undefined}
           onChange={(event) => void perform(account.id, () => accounts.save({ id: account.id, name: account.name, identity: account.identity, apiKey: '', concurrency: account.concurrency, enabled: event.target.checked }))} />{account.enabled ? '已启用' : '已停用'}</label></TableCell>
         <TableCell><span className="account-key-hint">{account.keyHint}</span><small>{account.queue ? (keyTypeLabels.get(account.queue.apiKeyType) ?? account.queue.apiKeyType) : '类型未同步'}</small></TableCell>
-        <TableCell><strong className="account-balance-value">{account.balance?.coins ?? '未同步'}</strong><small>{account.balance?.money !== null && account.balance?.money !== undefined ? `${account.balance.money} ${account.balance.currency ?? ''}` : '钱包未提供'}</small></TableCell>
+        <TableCell><strong className="account-balance-value">{account.balance?.points ?? '未同步'}</strong><small>{account.balance?.money !== null && account.balance?.money !== undefined ? `${account.balance.money} ${account.balance.currency ?? ''}` : '钱包未提供'}</small></TableCell>
         <TableCell><div className="account-value-pair"><span>本地</span><strong>{account.concurrency}</strong></div><div className="account-value-pair"><span>远端</span><strong>{account.queue?.concurrentLimit ?? '未同步'}</strong></div></TableCell>
         <TableCell>{account.queue ? <><div className="account-queue-counts"><span>运行 <strong>{account.queue.runningCount}</strong></span><span>排队 <strong>{account.queue.queuedCount}</strong></span></div>
           <small>总数 {account.queue.totalCurrentTasks} · 空位 {Math.max(0, account.queue.concurrentLimit - account.queue.runningCount)}</small>{account.queueStatus === 'error' && <small className="field-error">旧快照</small>}</> : <span className="muted">未同步</span>}</TableCell>
