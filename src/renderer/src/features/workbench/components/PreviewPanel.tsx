@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { SelectField, SelectOption } from '@/components/ui/select-field'
 import { desktop, unwrap } from '@/shared/lib/desktop'
 import { recordConsumptionLabel, summarizeDraftConsumption } from '../draft-consumption'
+import { PreviewVideoPlayer } from './PreviewVideoPlayer'
 
 const labels: Record<PreviewKind, string> = { sampling: '实时采样', draft: '低清预览', final: '最终成片' }
 
@@ -14,6 +15,7 @@ function capabilityLabel(preview: PreviewSnapshot, kind: PreviewKind): string {
   if (preview.capabilities.status === 'checking') return '正在读取线上工作流'
   if (preview.capabilities.status === 'failed') return '线上工作流预览能力未确认'
   if (!preview.capabilities[kind]) return kind === 'sampling' ? '未检测到采样预览节点' : `未识别${labels[kind]}节点`
+  if (kind === 'sampling' && ['success', 'failed', 'cancelled'].includes(preview.remoteStatus)) return '本次未收到采样预览，无法在结束后补回'
   return `等待${labels[kind]}`
 }
 
@@ -37,8 +39,7 @@ function MediaView({ media, kind, onDuration }: { media: PreviewMedia; kind: Pre
   useEffect(() => setFailed(false), [source])
   if (failed) return <div className="media-empty"><FontAwesomeIcon icon={faVideo} /><span>媒体无法播放，地址可能已过期</span></div>
   return media.mime === 'video/mp4'
-    ? <video src={source} controls autoPlay={kind === 'sampling'} muted={kind === 'sampling'} loop={kind === 'sampling'} playsInline preload="metadata"
-        onLoadedMetadata={(event) => { if (Number.isFinite(event.currentTarget.duration)) onDuration(event.currentTarget.duration) }} onError={() => setFailed(true)} />
+    ? <PreviewVideoPlayer source={source} sampling={kind === 'sampling'} label={labels[kind]} onDuration={onDuration} onError={() => setFailed(true)} />
     : <img src={source} alt={labels[kind]} onError={() => setFailed(true)} />
 }
 
@@ -60,6 +61,7 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
   const [downloading, setDownloading] = useState(false)
   const [duration, setDuration] = useState<{ source: string; seconds: number } | null>(null)
   const seconds = media && duration?.source === media.source ? duration.seconds : null
+  const noSamplingAtEnd = kind === 'sampling' && !media && preview && ['success', 'failed', 'cancelled'].includes(preview.remoteStatus)
   const hasConsumption = preview?.consumption?.coins != null && !preview.consumption.conflictingFields.includes('coins') && /^\d{8,30}$/.test(preview.taskId)
   async function download() {
     if (!preview) return
@@ -70,7 +72,7 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
   }
   return <section className={`preview-slot preview-slot-${kind}`} aria-label={labels[kind]}>
     <div className="early-heading"><span><FontAwesomeIcon icon={kind === 'sampling' ? faTowerBroadcast : kind === 'draft' ? faVideo : faClapperboard} /> {labels[kind]}</span>
-      <span className={media ? 'text-success' : 'muted'}>{localAssetId ? '已存入素材库 · 本地播放' : archive?.status === 'downloading' ? '正在存入素材库' : media ? '可播放' : '等待中'}</span></div>
+      <span className={media ? 'text-success' : 'muted'}>{localAssetId ? '已存入素材库 · 本地播放' : archive?.status === 'downloading' ? '正在存入素材库' : media ? '可播放' : noSamplingAtEnd ? '任务已结束' : '等待中'}</span></div>
     <div className="main-media">
       {media ? <MediaView media={media} kind={kind} onDuration={(value) => setDuration({ source: media.source, seconds: value })} /> : <div className="media-empty"><FontAwesomeIcon icon={kind === 'sampling' ? faTowerBroadcast : faClapperboard} />
         <strong>{preview ? capabilityLabel(preview, kind) : '尚无生成结果'}</strong></div>}
