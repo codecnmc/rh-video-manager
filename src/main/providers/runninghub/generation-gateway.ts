@@ -8,6 +8,7 @@ import type { VideoDraft } from '../../../shared/contracts/video'
 import type { ReferenceKind } from '../../../shared/contracts/references'
 import { inspectWorkflowPreview } from './workflow-preview'
 import { parseTaskConsumption } from './task-consumption'
+import { prepareNativeH3Graph, type NativeH3MediaBinding } from './native-h3'
 
 const nodeSchema = z.object({ class_type: z.string().max(200), inputs: z.record(z.string(), z.unknown()) }).passthrough()
 const graphSchema = z.record(z.string().min(1).max(100), nodeSchema).refine((graph) => Object.keys(graph).length <= 5000)
@@ -64,14 +65,18 @@ function withoutNotifications(graph: Graph): Graph {
   return graph
 }
 
-export function prepareH3Graph(response: unknown, draft: VideoDraft): { graph: Graph; nodeId: string; previewDefinition: string } {
+export function prepareH3Graph(response: unknown, draft: VideoDraft): { graph: Graph; nodeId: string; previewDefinition: string; applyNativeMedia?: NativeH3MediaBinding } {
   const envelope = envelopeSchema.parse(response)
   if (envelope.code !== 0) throw new Error('线上工作流读取失败')
   const prompt = z.object({ prompt: z.string().max(2 * 1024 * 1024) }).parse(envelope.data).prompt
   const graph = withoutNotifications(graphSchema.parse(JSON.parse(prompt) as unknown))
-  const candidates = Object.entries(graph).filter(([, node]) => node.class_type === 'FeiHouEasyH3RH')
-  if (candidates.length !== 1) throw new Error('线上工作流须包含一个受支持的 FeiHouEasyH3RH 全能参考节点')
+  const candidates = Object.entries(graph).filter(([, node]) => node.class_type === 'FeiHouEasyH3RH' || node.class_type === 'MiniMaxH3ReferenceToVideo')
+  if (candidates.length !== 1) throw new Error('线上工作流须包含一个受支持的 FeiHouEasyH3RH 或 MiniMaxH3ReferenceToVideo 全能参考节点')
   const [nodeId, node] = candidates[0]!
+  if (node.class_type === 'MiniMaxH3ReferenceToVideo') {
+    const applyNativeMedia = prepareNativeH3Graph(graph, nodeId, draft)
+    return { graph, nodeId, applyNativeMedia, previewDefinition: JSON.stringify(inspectWorkflowPreview({ code: 0, data: { prompt: JSON.stringify(graph) } })) }
+  }
   const mode = node.inputs.mode
   if (typeof mode !== 'string' || !['reference', 'reference-to-video', '参考生视频'].includes(mode.toLowerCase())) throw new Error('请将线上 H3 工作流设置为全能参考模式')
   for (const field of ['prompt', 'resolution', 'aspect_ratio', 'reference_mention_mode']) {
@@ -155,10 +160,16 @@ export class RunningHubGenerationGateway implements GenerationGateway {
         const names = { image: 'Picture', video: 'Video', audio: 'Audio' }
         const remap = new Map<string, string>()
         for (const { reference } of ordered) remap.set(reference.label, `<${names[reference.kind]} ${++counters[reference.kind]}>`)
-        prepared.graph[prepared.nodeId]!.inputs.prompt = draft.prompt.replace(/<(Picture|Video|Audio) [1-9]\d*>/g, (label) => remap.get(label) ?? label)
-        prepared.graph[prepared.nodeId]!.inputs.embedded_media_json = JSON.stringify(ordered.map(({ reference, filename }) => ({
-          filename, media_type: reference.kind, audio_trim: ''
-        })))
+        const prompt = draft.prompt.replace(/<(Picture|Video|Audio) [1-9]\d*>/g, (label) => remap.get(label) ?? label)
+        if (prepared.applyNativeMedia) {
+          try { prepared.applyNativeMedia(ordered, prompt) }
+          catch (error) { throw new GenerationRejectedError(error instanceof Error ? error.message : '原生 H3 媒体映射失败，未提交生成') }
+        } else {
+          prepared.graph[prepared.nodeId]!.inputs.prompt = prompt
+          prepared.graph[prepared.nodeId]!.inputs.embedded_media_json = JSON.stringify(ordered.map(({ reference, filename }) => ({
+            filename, media_type: reference.kind, audio_trim: ''
+          })))
+        }
         // 不传 retainSeconds、webhookUrl、个人队列或额外模型请求；不自动重试付费创建。
         const response = envelopeSchema.parse(await request('/task/openapi/create', credential, JSON.stringify({
           apiKey: credential, workflowId, workflow: JSON.stringify(prepared.graph), nodeInfoList: [], instanceType: draft.instance
