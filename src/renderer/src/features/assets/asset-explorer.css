@@ -61,7 +61,12 @@
 .asset-directory-tile .asset-tile-media > svg { width: 70%; height: 70%; color: #c59728; }
 .asset-explorer-status { display: flex; flex-wrap: wrap; gap: 12px; padding: 7px 16px; min-height: 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; flex-shrink: 0; }
 .asset-explorer-status > span:last-child { margin-left: auto; min-width: 0; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.asset-preview-dialog { width: min(900px, calc(100vw - 40px)); }
+.dialog.asset-preview-dialog { width: min(1040px, calc(100vw - 64px)); padding: 16px 20px; }
+.asset-preview-dialog .dialog-heading h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-preview-dialog .dialog-heading > button { flex-shrink: 0; }
+.asset-explorer-preview:has(> .preview-player) { height: auto; overflow: hidden; background: #182024; border: 1px solid var(--border); border-radius: 6px; }
+.asset-explorer-preview > .preview-player .preview-player-stage { height: min(58dvh, 580px); aspect-ratio: auto; }
+.asset-explorer-preview > .preview-player:fullscreen .preview-player-stage { height: auto; }
 .asset-explorer-preview { display: flex; align-items: center; justify-content: center; height: min(56vh, 540px); overflow: auto; background: #f4f6f7; }
 .asset-explorer-preview > img, .asset-explorer-preview > video { max-width: 100%; max-height: 100%; object-fit: contain; }
 .asset-explorer-preview .asset-prompt-preview { overflow: auto; }
