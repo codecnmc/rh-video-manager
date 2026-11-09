@@ -4,10 +4,12 @@ export const consumptionAmountSchema = z.string().regex(/^\d{1,24}(?:\.\d{1,8})?
 export const taskConsumptionSchema = z.object({
   source: z.literal('runninghub-outputs'),
   checkedAt: z.string().datetime(),
+  // 历史 RH 币字段保留，缺少积分的旧快照不能按积分汇总。
+  points: consumptionAmountSchema.nullable().default(null),
   coins: consumptionAmountSchema.nullable(),
   money: consumptionAmountSchema.nullable(),
   thirdPartyMoney: consumptionAmountSchema.nullable(),
-  conflictingFields: z.array(z.enum(['coins', 'money', 'thirdPartyMoney'])).max(3)
+  conflictingFields: z.array(z.enum(['points', 'coins', 'money', 'thirdPartyMoney'])).max(4)
 })
 export type TaskConsumption = z.infer<typeof taskConsumptionSchema>
 
@@ -35,7 +37,7 @@ export interface ConsumptionEntry {
 
 export interface ConsumptionLedger {
   entries: ConsumptionEntry[]
-  knownCoins: string | null
+  knownPoints: string | null
   knownCount: number
   unknownCount: number
 }

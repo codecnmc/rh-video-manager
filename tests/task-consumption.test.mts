@@ -12,7 +12,7 @@ test('文档返回的每个输出重复耗币，只记录一次任务费用，�
     { consumeCoins: '017.00', consumeMoney: '0.10', thirdPartyConsumeMoney: null, taskCostTime: '83' },
     { consumeCoins: '17', consumeMoney: '0.1', thirdPartyConsumeMoney: null, taskCostTime: '83' }
   ], checkedAt)
-  assert.deepEqual(value, { source: 'runninghub-outputs', checkedAt, coins: '17', money: '0.1', thirdPartyMoney: null, conflictingFields: [] })
+  assert.deepEqual(value, { source: 'runninghub-outputs', checkedAt, points: null, coins: '17', money: '0.1', thirdPartyMoney: null, conflictingFields: [] })
   assert.deepEqual(taskConsumptionSchema.parse(value), value)
 })
 
@@ -67,4 +67,22 @@ test('历史费用查询只请求 outputs，拒绝接口业务错误，不泄露
 test('消费日期范围校验按时间比较而非 ISO 小数秒字符串顺序', () => {
   assert.equal(consumptionFilterSchema.safeParse({ from: '2026-11-04T00:00:00Z', to: '2026-11-04T00:00:00.100Z' }).success, true)
   assert.equal(consumptionFilterSchema.safeParse({ from: '2026-11-05T00:00:00Z', to: '2026-11-04T00:00:00Z' }).success, false)
+})
+
+test('积分结算采用 chargedPoint，重复输出只计一次，旧 RH 币不作为积分', () => {
+  const value = parseTaskConsumption([
+    { settleMode: 'POINT', chargedPoint: '18.36', consumeCoins: null, consumeMoney: null },
+    { settleMode: 'POINT', chargedPoint: '18.360', consumeCoins: null }
+  ], checkedAt)
+  assert.equal(value.points, '18.36')
+  assert.equal(value.coins, null)
+  assert.equal(parseTaskConsumption([{ chargedPoint: '0' }]).points, '0')
+  assert.equal(parseTaskConsumption([{ consumeCoins: '18.36' }]).points, null)
+  const conflict = parseTaskConsumption([{ chargedPoint: '18.36' }, { chargedPoint: '19' }])
+  assert.equal(conflict.points, null)
+  assert.deepEqual(conflict.conflictingFields, ['points'])
+  const old = taskConsumptionSchema.parse({ source: 'runninghub-outputs', checkedAt, coins: '17', money: null, thirdPartyMoney: null, conflictingFields: [] })
+  assert.equal(old.points, null)
+  assert.equal(mergeTaskConsumption(old, value).points, '18.36')
+  assert.equal(mergeTaskConsumption(value, parseTaskConsumption([], '2026-11-05T00:00:00.000Z')).points, '18.36')
 })

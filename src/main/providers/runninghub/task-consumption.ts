@@ -2,13 +2,13 @@ import { z } from 'zod'
 import { consumptionAmountSchema, type TaskConsumption } from '../../../shared/contracts/consumption'
 
 const rowsSchema = z.array(z.record(z.string(), z.unknown())).max(5000)
-const fields = { coins: 'consumeCoins', money: 'consumeMoney', thirdPartyMoney: 'thirdPartyConsumeMoney' } as const
+const fields = { points: 'chargedPoint', coins: 'consumeCoins', money: 'consumeMoney', thirdPartyMoney: 'thirdPartyConsumeMoney' } as const
 
 export function parseTaskConsumption(data: unknown, checkedAt = new Date().toISOString()): TaskConsumption {
   const rows = rowsSchema.parse(data)
   const result: TaskConsumption = { source: 'runninghub-outputs', checkedAt,
-    coins: null, money: null, thirdPartyMoney: null, conflictingFields: [] }
-  for (const field of ['coins', 'money', 'thirdPartyMoney'] as const) {
+    points: null, coins: null, money: null, thirdPartyMoney: null, conflictingFields: [] }
+  for (const field of ['points', 'coins', 'money', 'thirdPartyMoney'] as const) {
     const values = new Set<string>()
     let invalid = false
     for (const row of rows) {

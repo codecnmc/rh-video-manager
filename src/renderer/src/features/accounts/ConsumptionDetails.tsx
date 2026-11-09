@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { SelectField, SelectOption } from '@/components/ui/select-field'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { useConsumption } from './use-consumption'
-import { coinsPerSecond, consumptionSeconds } from './consumption-metrics'
+import { pointsPerSecond, consumptionSeconds } from './consumption-metrics'
 
 const pageSize = 50
 const dateFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -19,7 +19,7 @@ function ConsumptionTime({ value }: { value: string }) {
   return <time dateTime={value}><span>{dateFormat.format(date)}</span><small>{timeFormat.format(date)}</small></time>
 }
 
-function ConsumptionAmount({ consumption, field }: { consumption: TaskConsumption | null; field: 'coins' | 'money' | 'thirdPartyMoney' }) {
+function ConsumptionAmount({ consumption, field }: { consumption: TaskConsumption | null; field: 'points' }) {
   if (consumption?.conflictingFields.includes(field)) return <span className="field-error" title="平台多个输出的费用不一致或格式无效，未纳入合计">数据冲突</span>
   return <span title={consumption?.[field] ?? '未知'}>{consumption?.[field] ?? '未知'}</span>
 }
@@ -45,7 +45,7 @@ export function ConsumptionDetails({ accounts, onBack }: { accounts: Account[]; 
   const lastPage = Math.max(0, Math.ceil(entries.length / pageSize) - 1)
   const currentPage = Math.min(page, lastPage)
   const visible = entries.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
-  const missing = entries.filter((entry) => entry.consumption?.coins == null).slice(0, 20)
+  const missing = entries.filter((entry) => entry.consumption?.points == null).slice(0, 20)
   const busy = consumption.refresh.isPending
   async function refresh(ids: string[]) {
     setNotice('')
@@ -70,9 +70,9 @@ export function ConsumptionDetails({ accounts, onBack }: { accounts: Account[]; 
     {invalidRange && <p className="field-error" role="alert">结束日期不能早于开始日期</p>}
     {consumption.error && <p className="field-error" role="alert">{consumption.error.message}</p>}
     {consumption.workspace.error && <p className="field-error">项目名称读取失败，暂时显示项目编号</p>}
-    <dl className="account-summary"><div><dt>成功任务已知耗币</dt><dd>{invalidRange ? '未知' : ledger?.knownCoins ?? '未知'}<span>RH 币</span></dd></div>
-      <div><dt>耗币已知</dt><dd>{invalidRange ? '未知' : ledger?.knownCount ?? '未知'}<span>笔</span></dd></div>
-      <div><dt>耗币未知 / 冲突</dt><dd>{invalidRange ? '未知' : ledger?.unknownCount ?? '未知'}<span>笔</span></dd></div>
+    <dl className="account-summary"><div><dt>成功任务积分消耗</dt><dd>{invalidRange ? '未知' : ledger?.knownPoints ?? '未知'}<span>积分</span></dd></div>
+      <div><dt>积分已知</dt><dd>{invalidRange ? '未知' : ledger?.knownCount ?? '未知'}<span>笔</span></dd></div>
+      <div><dt>积分未知 / 冲突</dt><dd>{invalidRange ? '未知' : ledger?.unknownCount ?? '未知'}<span>笔</span></dd></div>
     </dl>
     {notice && <p className="inline-warning" role="status">{notice}</p>}
     <div className="management-table-scroll consumption-table-scroll" role="region" aria-label="成功任务消费明细" tabIndex={0}><Table className="management-table consumption-table"><colgroup>
@@ -81,20 +81,16 @@ export function ConsumptionDetails({ accounts, onBack }: { accounts: Account[]; 
       <col className="consumption-col-costs" /><col className="consumption-col-query" />
     </colgroup><TableHeader><TableRow>
       <TableHead scope="col">提交时间</TableHead><TableHead scope="col">项目 / 任务</TableHead><TableHead scope="col">账号 / 工作流</TableHead>
-      <TableHead scope="col" className="consumption-number" title="视频时长及每视频秒 RH 币；时长取提交快照">视频秒数 / RH币</TableHead>
-      <TableHead scope="col" className="consumption-number" title="平台运行时长及每运行秒 RH 币">运行秒数 / RH币</TableHead>
-      <TableHead scope="col" className="consumption-number" title="RH 币、运行费用、第三方 API 费用分项显示，不同单位不相加">RH币 / 费用</TableHead><TableHead scope="col">费用查询</TableHead>
+      <TableHead scope="col" className="consumption-number" title="视频时长及每视频秒积分消耗；时长取提交快照">视频时长 / 单价</TableHead>
+      <TableHead scope="col" className="consumption-number" title="平台运行时长及每运行秒积分消耗">运行时长 / 单价</TableHead>
+      <TableHead scope="col" className="consumption-number" title="平台 chargedPoint 返回的任务积分消耗">消耗积分</TableHead><TableHead scope="col">费用查询</TableHead>
     </TableRow></TableHeader><TableBody>{visible.map((entry) => <TableRow key={entry.id}>
       <TableCell><ConsumptionTime value={entry.submittedAt} /></TableCell>
       <TableCell><strong className="consumption-task-title" title={entry.title}>{entry.title}</strong><small className="consumption-project-name" title={`${projectName(entry.projectId)} · ${entry.projectId}`}>{projectName(entry.projectId)}</small><small>{entry.taskId}</small></TableCell>
       <TableCell><span className="consumption-account-name" title={`${accountName(entry.accountId)} · ${entry.accountId}`}>{accountName(entry.accountId)}</span><small>{entry.workflowId}</small></TableCell>
-      <TableCell className="consumption-number">{consumptionSeconds(entry.videoSeconds)}<small>{coinsPerSecond(entry.consumption, entry.videoSeconds) ?? '未知'} RH币/秒</small></TableCell>
-      <TableCell className="consumption-number">{consumptionSeconds(entry.executionSeconds)}<small>{coinsPerSecond(entry.consumption, entry.executionSeconds) ?? '未知'} RH币/秒</small></TableCell>
-      <TableCell className="consumption-number"><div className="consumption-costs">
-        <div><span>RH币</span><ConsumptionAmount consumption={entry.consumption} field="coins" /></div>
-        <div title="consumeMoney，平台未声明币种"><span>运行费用</span><ConsumptionAmount consumption={entry.consumption} field="money" /></div>
-        <div title="thirdPartyConsumeMoney，平台未声明币种"><span>第三方 API</span><ConsumptionAmount consumption={entry.consumption} field="thirdPartyMoney" /></div>
-      </div></TableCell>
+      <TableCell className="consumption-number">{consumptionSeconds(entry.videoSeconds)}<small>{pointsPerSecond(entry.consumption, entry.videoSeconds) ?? '未知'} 积分/秒</small></TableCell>
+      <TableCell className="consumption-number">{consumptionSeconds(entry.executionSeconds)}<small>{pointsPerSecond(entry.consumption, entry.executionSeconds) ?? '未知'} 积分/秒</small></TableCell>
+      <TableCell className="consumption-number"><div className="consumption-points"><ConsumptionAmount consumption={entry.consumption} field="points" /><small>积分</small></div></TableCell>
       <TableCell><div className="consumption-query"><Button variant="ghost" size="icon" title="查询原任务费用（不会重新生成）" aria-label={`查询 ${entry.title} 费用`} disabled={busy} onClick={() => void refresh([entry.id])}><FontAwesomeIcon icon={faRotateRight} spin={busy && consumption.refresh.variables?.includes(entry.id)} /></Button>
         {entry.consumption ? <ConsumptionTime value={entry.consumption.checkedAt} /> : <span className="muted">未查询</span>}</div></TableCell>
     </TableRow>)}</TableBody></Table>

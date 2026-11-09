@@ -51,8 +51,8 @@ export class GenerationService {
       .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
     // 同一远端任务仅计一次；未知费用不能算成零，金额字段没有币种信息，不能混合折算。
     const unique = [...new Map(entries.map((entry) => [`${entry.accountId}/${entry.taskId}`, entry])).values()]
-    const known = unique.flatMap((entry) => entry.consumption?.coins != null ? [entry.consumption.coins] : [])
-    return { entries: unique, knownCoins: known.length ? sumDecimals(known) : null,
+    const known = unique.flatMap((entry) => entry.consumption?.points != null && !entry.consumption.conflictingFields.includes('points') ? [entry.consumption.points] : [])
+    return { entries: unique, knownPoints: known.length ? sumDecimals(known) : null,
       knownCount: known.length, unknownCount: unique.length - known.length }
   }
 

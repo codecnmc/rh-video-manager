@@ -117,18 +117,18 @@ test('消费补查使用原账号，只更新费用，不重提、不恢复监�
   app.gateway.queryConsumption = async (taskId, credential) => {
     assert.equal(taskId, initial.taskId)
     assert.equal(credential, 'original-account-key')
-    return parseTaskConsumption([{ consumeCoins: '17' }])
+    return parseTaskConsumption([{ chargedPoint: '17' }])
   }
   await app.service.refreshConsumption(initial.id)
   const saved = app.records.get(initial.id)!
-  assert.equal(saved.preview.consumption?.coins, '17')
+  assert.equal(saved.preview.consumption?.points, '17')
   const { consumption: _consumption, ...preview } = saved.preview
   assert.deepEqual(preview, before.preview)
   assert.equal(app.creates, 1)
   assert.equal(app.restored, restored)
   app.gateway.queryConsumption = async () => { throw new Error('接口已停用') }
   await assert.rejects(app.service.refreshConsumption(initial.id), /接口已停用/)
-  assert.equal(app.records.get(initial.id)!.preview.consumption?.coins, '17')
+  assert.equal(app.records.get(initial.id)!.preview.consumption?.points, '17')
 })
 
 test('消费明细只汇总成功任务，保留未知与零，支持去重和项目账号日期筛选', async () => {
@@ -138,14 +138,14 @@ test('消费明细只汇总成功任务，保留未知与零，支持去重和�
   first.createdAt = '2026-11-04T00:00:00.000Z'
   first.preview.submittedAt = first.createdAt
   first.preview.remoteStatus = 'success'
-  first.preview.consumption = parseTaskConsumption([{ consumeCoins: '0.1' }])
+  first.preview.consumption = parseTaskConsumption([{ chargedPoint: '0.1' }])
   app.records.set(first.id, first)
   for (const [index, coins] of ['0.2', '0', null].entries()) {
     const row = structuredClone(first)
     row.id = randomUUID()
     row.preview.id = row.id
     row.preview.taskId = `123456789012345679${index}`
-    row.preview.consumption = coins === null ? undefined : parseTaskConsumption([{ consumeCoins: coins }])
+    row.preview.consumption = coins === null ? undefined : parseTaskConsumption([{ chargedPoint: coins }])
     app.records.set(row.id, row)
   }
   const duplicate = { ...structuredClone(first), id: randomUUID() }
@@ -156,18 +156,18 @@ test('消费明细只汇总成功任务，保留未知与零，支持去重和�
     excluded.preview.id = excluded.id
     excluded.preview.taskId = `123456789012345680${index}`
     excluded.preview.remoteStatus = status
-    excluded.preview.consumption = parseTaskConsumption([{ consumeCoins: '10000' }])
+    excluded.preview.consumption = parseTaskConsumption([{ chargedPoint: '10000' }])
     app.records.set(excluded.id, excluded)
   }
   const ledger = app.service.consumptionLedger({ projectId: app.input.projectId, accountId: app.input.expectedAccountId,
     from: '2026-11-04T00:00:00.000Z', to: '2026-11-04T23:59:59.999Z' })
   assert.equal(ledger.entries.length, 4)
-  assert.equal(ledger.knownCoins, '0.3')
+  assert.equal(ledger.knownPoints, '0.3')
   assert.equal(ledger.knownCount, 3)
   assert.equal(ledger.unknownCount, 1)
   assert.ok(ledger.entries.every((entry) => entry.remoteStatus === 'success'))
   assert.equal(app.service.consumptionLedger({ accountId: randomUUID() }).entries.length, 0)
-  assert.equal(app.service.consumptionLedger({ from: '2026-11-05T00:00:00.000Z' }).knownCoins, null)
+  assert.equal(app.service.consumptionLedger({ from: '2026-11-05T00:00:00.000Z' }).knownPoints, null)
 })
 
 test('生成中及快照暂停时不能补查费用，补查中禁止快照复制并去重请求', async () => {
@@ -185,7 +185,7 @@ test('生成中及快照暂停时不能补查费用，补查中禁止快照复�
   const query = app.service.refreshConsumption(initial.id)
   assert.throws(() => app.service.pauseForSnapshot(), /请完成后再导出/)
   await assert.rejects(app.service.refreshConsumption(initial.id), /正在补查/)
-  resolveQuery(parseTaskConsumption([{ consumeCoins: '0' }]))
+  resolveQuery(parseTaskConsumption([{ chargedPoint: '0' }]))
   await query
   assert.equal(app.service.hasLocalStorageActivity(), false)
 })
@@ -195,7 +195,7 @@ test('所有非成功任务拒绝补查，不查询账号凭据或远端费用',
   const initial = await app.service.submit(app.input)
   let queries = 0
   let credentials = 0
-  app.gateway.queryConsumption = async () => { queries += 1; return parseTaskConsumption([{ consumeCoins: '17' }]) }
+  app.gateway.queryConsumption = async () => { queries += 1; return parseTaskConsumption([{ chargedPoint: '17' }]) }
   app.context.credential = () => { credentials += 1; return 'test-only-key' }
   for (const status of ['failed', 'cancelled', 'unknown', 'queued', 'running'] as const) {
     const row = app.records.get(initial.id)!
@@ -259,7 +259,7 @@ test('费用查询返回前成功状态已变化时拒绝保存', async () => {
     const changed = app.records.get(initial.id)!
     changed.preview.remoteStatus = 'failed'
     app.records.set(changed.id, changed)
-    return parseTaskConsumption([{ consumeCoins: '17' }])
+    return parseTaskConsumption([{ chargedPoint: '17' }])
   }
   await assert.rejects(app.service.refreshConsumption(initial.id), /任务记录已变化/)
   assert.equal(app.records.get(initial.id)!.preview.consumption, undefined)
@@ -648,7 +648,7 @@ test('SQLite v10 保存并重读独立任务快照，拒绝损坏的落库内容
     const record = app.records.get(app.input.requestId)!
     // 此测试仅验证任务持久化；素材外键由单独的导入/删除用例覆盖。
     const withoutAssets = { ...record, references: [], replacedTaskIds: [randomUUID()], regenerationConfirmedAt: new Date().toISOString() }
-    withoutAssets.preview.consumption = parseTaskConsumption([{ consumeCoins: '17', consumeMoney: null }])
+    withoutAssets.preview.consumption = parseTaskConsumption([{ chargedPoint: '17', consumeMoney: null }])
     new SqliteGenerationRepository(database.connection).save(withoutAssets)
     const restored = new SqliteGenerationRepository(database.connection).list()[0]!
     assert.equal(restored.preview.taskId, '1234567890123456789')
