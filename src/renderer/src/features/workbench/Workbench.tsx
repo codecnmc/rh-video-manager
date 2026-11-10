@@ -17,6 +17,7 @@ import { AssetMcpPanel } from '@/features/mcp'
 import { ExtensionsPanel, ExtensionPage, useExtensions } from '@/features/extensions'
 import { SettingsPanel, FirstUseGuide, type GuideView } from '@/features/settings'
 import { SkillsPanel } from '@/features/skills'
+import { TutorialPage } from '@/features/tutorial'
 import { useWorkspace } from './use-workspace'
 import { usePreviews } from './use-previews'
 import { resolveSavedDraft, useWorkbenchUi } from './workbench-store'
@@ -139,7 +140,7 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
   const preview = draftTasks.find((task) => task.id === activeTask) ?? draftTasks[0]
   const selectedExtension = extensions.data?.find((item) => item.id === extensionSelection?.extensionId)
   const extensionTitle = selectedExtension?.manifest.contributes.pages?.find((page) => page.id === extensionSelection?.pageId)?.title ?? '插件页面'
-  const headings = { video: '视频生成', 'image-generation': '素材生成', assembly: '排片剪辑库', 'script-library': '剧本库', settings: '设置', skills: 'Skill', 'extension-page': extensionTitle, assets: '素材库', accounts: '账号池', workflows: '工作流总览', mcp: 'MCP', extensions: '插件', tasks: '任务队列' }
+  const headings = { tutorial: '使用教程', video: '视频生成', 'image-generation': '素材生成', assembly: '排片剪辑库', 'script-library': '剧本库', settings: '设置', skills: 'Skill', 'extension-page': extensionTitle, assets: '素材库', accounts: '账号池', workflows: '工作流总览', mcp: 'MCP', extensions: '插件', tasks: '任务队列' }
 
   useEffect(() => {
     if (detached || !data) return
@@ -354,7 +355,7 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
     <p>{workspace.error?.message ?? '没有可用数据'}</p><Button onClick={() => void workspace.refetch()}><FontAwesomeIcon icon={faRotateRight} />重新载入</Button></div>
 
   // 素材生成将页头放入任务区，右侧编辑栏才能独占标题栏下方的完整高度。
-  const workspaceHeader = <header className="workspace-header"><div className="workspace-location"><Button variant="ghost" size="icon" title={ui.sidebarCollapsed ? '展开左侧菜单' : '收起左侧菜单'} aria-label={ui.sidebarCollapsed ? '展开左侧菜单' : '收起左侧菜单'} aria-expanded={!ui.sidebarCollapsed} aria-controls="workbench-sidebar" onClick={ui.toggleSidebar}><FontAwesomeIcon icon={ui.sidebarCollapsed ? faBars : faAnglesLeft} /></Button><nav className="breadcrumb" aria-label="当前位置">{['tasks', 'script-library', 'settings'].includes(ui.view) ? '工作台' : project?.name ?? '工作台'}<span>/</span>{headings[ui.view]}</nav>
+  const workspaceHeader = <header className="workspace-header"><div className="workspace-location"><Button variant="ghost" size="icon" title={ui.sidebarCollapsed ? '展开左侧菜单' : '收起左侧菜单'} aria-label={ui.sidebarCollapsed ? '展开左侧菜单' : '收起左侧菜单'} aria-expanded={!ui.sidebarCollapsed} aria-controls="workbench-sidebar" onClick={ui.toggleSidebar}><FontAwesomeIcon icon={ui.sidebarCollapsed ? faBars : faAnglesLeft} /></Button><nav className="breadcrumb" aria-label="当前位置">{['tutorial', 'tasks', 'script-library', 'settings'].includes(ui.view) ? '工作台' : project?.name ?? '工作台'}<span>/</span>{headings[ui.view]}</nav>
     {ui.view !== 'image-generation' && <Button variant="ghost" size="icon" title="在新窗口打开当前项目" aria-label="在新窗口打开当前项目" disabled={!project || busy} onClick={() => void openProjectWindow()}><FontAwesomeIcon icon={faArrowUpRightFromSquare} /></Button>}
   </div>
   <div className="window-presence" role="status" aria-live="polite">
@@ -392,6 +393,7 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
           <Button variant="unstyled" key={`${extension.id}/${page.id}`} title={`${extension.manifest.displayName} · ${page.title}`} className={`nav-item ${ui.view === 'extension-page' && extensionSelection?.pageId === page.id ? 'active' : ''}`} onClick={() => navigate(() => { setExtensionSelection({ extensionId: extension.id, pageId: page.id }); ui.setView('extension-page') })}><FontAwesomeIcon icon={faPuzzlePiece} /><span>{page.title}</span></Button>))}
       </div>
       <div className="sidebar-bottom">
+        <Button variant="unstyled" title="使用教程" aria-label="使用教程" className={`nav-item ${ui.view === 'tutorial' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tutorial'))}><FontAwesomeIcon icon={faBookOpen} /><span>使用教程</span></Button>
         <Button data-guide-target="tasks" variant="unstyled" title="任务队列" aria-label="任务队列" className={`nav-item ${ui.view === 'tasks' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /><span>任务队列</span><span className="nav-count">{previews.data ? allTasks.length : '未读取'}</span></Button>
         <Button data-guide-target="workflows" variant="unstyled" title="工作流总览" aria-label="工作流总览" className={`nav-item ${ui.view === 'workflows' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('workflows'))}><FontAwesomeIcon icon={faDiagramProject} /><span>工作流总览</span></Button>
         <Button data-guide-target="accounts" variant="unstyled" title="账号池" aria-label="账号池" className={`nav-item ${ui.view === 'accounts' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('accounts'))}><FontAwesomeIcon icon={faUsers} /><span>账号池</span></Button>
@@ -405,7 +407,8 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
         const active = ui.view === 'assembly' && id === (project?.id ?? null)
         return <RetainedAssemblyPage key={id ?? 'public'} projectId={id} active={active} windowRequest={assemblyWindowRequests[id ?? 'public'] ?? 0} onDirty={onAssemblyDirty} onNotice={setNotice} />
       })}
-      {ui.view === 'accounts' ? <AccountsPanel key={`accounts-${editorVersion}`} onDirty={onDirty} onNotice={setNotice} renderWorkflows={(account, onWorkflowDirty) => <WorkflowsPanel accountId={account.id} onDirty={onWorkflowDirty} onNotice={setNotice} />} />
+      {ui.view === 'tutorial' ? <TutorialPage onNavigate={(view) => { void navigate(() => ui.setView(view)) }} />
+        : ui.view === 'accounts' ? <AccountsPanel key={`accounts-${editorVersion}`} onDirty={onDirty} onNotice={setNotice} renderWorkflows={(account, onWorkflowDirty) => <WorkflowsPanel accountId={account.id} onDirty={onWorkflowDirty} onNotice={setNotice} />} />
         : ui.view === 'workflows' ? <WorkflowsPanel key={`workflows-${editorVersion}`} onDirty={onDirty} onNotice={setNotice} />
           : ui.view === 'assets' ? <LibraryPanel key={`assets-${project?.id ?? 'all'}-${editorVersion}`} projectId={project?.id ?? null} projects={data.projects} onDirty={onDirty} onNotice={setNotice} />
             : ui.view === 'image-generation' ? <ImageGenerationLibrary key={`images-${project?.id ?? 'public'}-${editorVersion}`} projectId={project?.id ?? null} workspaceHeader={workspaceHeader} onDirty={onDirty} onNotice={setNotice} registerSave={registerImageSave} />
@@ -459,7 +462,7 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
       onSelect={selectTask} onDisconnect={previews.disconnect} onNotice={setNotice} actions={<>
         <Button variant="ghost" size="icon" title="打开完整任务队列" aria-label="打开完整任务队列" onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /></Button>
         <Button variant="ghost" size="icon" title="关闭任务浮窗" aria-label="关闭任务浮窗" onClick={() => ui.setQueueOpen(false)}><FontAwesomeIcon icon={faXmark} /></Button></>} /></TaskQueuePopover>
-    <FirstUseGuide autoStart={!detached} requested={guideOpen} onClose={() => setGuideOpen(false)} onNavigate={navigateGuide} activeView={ui.view} />
+    <FirstUseGuide autoStart={!detached} requested={guideOpen} onClose={() => setGuideOpen(false)} onComplete={() => navigateGuide('tutorial')} onNavigate={navigateGuide} activeView={ui.view} />
     {notice.message && <div key={notice.revision} className="toast" role="status"><span>{notice.message}</span><Button variant="ghost" size="icon" title="关闭通知" aria-label="关闭通知" onClick={() => setNotice('')}><FontAwesomeIcon icon={faXmark} /></Button></div>}
     {ui.dialog === 'project' && <NameDialog title="新建项目" onClose={() => ui.setDialog(null)} onCreate={createEntity} />}
     {managingGroups && !groupDialog && <Dialog title="管理分组" onClose={() => { if (!busy) setManagingGroups(false) }}>

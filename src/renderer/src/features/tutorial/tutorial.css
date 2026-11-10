@@ -1,0 +1,19 @@
+.tutorial-page { scroll-behavior: smooth; }
+.tutorial-content { max-width: 1120px; margin: 0 auto; }
+.tutorial-page h1 { font-size: 24px; margin: 12px 0 8px; }
+.tutorial-page h2 { font-size: 19px; margin: 0 0 16px; }
+.tutorial-page h3 { font-size: 15px; margin: 20px 0 8px; }
+.tutorial-page p, .tutorial-page li { line-height: 1.85; }
+.tutorial-page li + li { margin-top: 8px; }
+.tutorial-page a { color: var(--primary); text-decoration: underline; overflow-wrap: anywhere; }
+.tutorial-toc { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.tutorial-section { padding: 28px 0; border-bottom: 1px solid var(--border); scroll-margin-top: 16px; }
+.tutorial-page .button-row { flex-wrap: wrap; margin: 16px 0; }
+.tutorial-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 18px; margin-top: 20px; align-items: start; }
+.tutorial-figure { margin: 0; min-width: 0; }
+.tutorial-image-button { display: block; width: 100%; border: 1px solid var(--border); padding: 8px; background: #f7f9fa; border-radius: 6px; cursor: zoom-in; }
+.tutorial-image-button img { display: block; width: 100%; height: 240px; object-fit: contain; }
+.tutorial-figure figcaption { margin-top: 8px; color: var(--muted); font-size: 12px; }
+.tutorial-full-image { display: block; width: 100%; height: auto; }
+.dialog.tutorial-image-dialog { width: min(1400px, calc(100vw - 48px)); }
+.tutorial-note { margin: 20px 0; border-left: 3px solid var(--primary); padding: 14px 18px; background: var(--primary-soft); }

@@ -7,7 +7,7 @@ import { AnchoredGuide } from '@/components/ui/anchored-guide'
 import { desktop, unwrap } from '@/shared/lib/desktop'
 import { usePreferences } from './use-preferences'
 
-export type GuideView = 'video' | 'assets' | 'accounts' | 'workflows' | 'image-generation' | 'tasks' | 'mcp'
+export type GuideView = 'tutorial' | 'video' | 'assets' | 'accounts' | 'workflows' | 'image-generation' | 'tasks' | 'mcp'
 const steps: { view: GuideView; target: string; title: string; icon: typeof faVideo; text: string }[] = [
   { view: 'video', target: 'new-project', title: '新建项目', icon: faFolderOpen, text: '这里创建项目，再在视频生成页新建视频草稿。引导不会替你创建示例数据；没有项目时也可以先了解后续入口。' },
   { view: 'assets', target: 'assets', title: '素材库', icon: faImages, text: '已切到素材库。导入本地图片、视频和音频只会保存到本地，不会立即上传。双击素材可预览，右键素材或文件夹可复制、编辑和移动。' },
@@ -19,8 +19,8 @@ const steps: { view: GuideView; target: string; title: string; icon: typeof faVi
   { view: 'mcp', target: 'mcp', title: '可选的 MCP 授权', icon: faPlug, text: '已切到 MCP。仅在需要外部工具访问时配置授权范围和读写权限，引导不会替你开启服务或扩大授权。以后可在设置中重新打开本引导。' }
 ]
 
-export function FirstUseGuide({ autoStart, requested, onClose, onNavigate, activeView }: {
-  autoStart: boolean; requested: boolean; onClose: () => void; onNavigate: (view: GuideView) => Promise<boolean>; activeView: string
+export function FirstUseGuide({ autoStart, requested, onClose, onComplete, onNavigate, activeView }: {
+  autoStart: boolean; requested: boolean; onClose: () => void; onComplete: () => Promise<boolean>; onNavigate: (view: GuideView) => Promise<boolean>; activeView: string
 }) {
   const preferences = usePreferences()
   const client = useQueryClient()
@@ -87,6 +87,8 @@ export function FirstUseGuide({ autoStart, requested, onClose, onNavigate, activ
     savingRef.current = true
     setSaving(true); setError('')
     try {
+      // 先通过工作台的脏状态保护完成跳转，再记录引导已结束。
+      if (!await onComplete()) { setError('请先处理未保存内容，再结束引导进入使用教程。'); return }
       const saved = unwrap(await desktop().saveAppPreferences({ onboardingVersion: 1 }))
       client.setQueryData(['app-preferences'], saved)
       const focus = originalFocus.current?.isConnected ? originalFocus.current : target

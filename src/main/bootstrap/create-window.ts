@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, nativeImage } from 'electron'
+import { app, BrowserWindow, dialog, nativeImage, shell } from 'electron'
 import { pathToFileURL } from 'node:url'
 import { canUseMediaFullscreen } from './fullscreen-permission'
 
@@ -63,7 +63,15 @@ export async function createWindow(options?: { assembly?: true; workbench?: true
     return canUseMediaFullscreen({ permission, requestingUrl: details.requestingUrl ?? (details.isMainFrame ? contents.getURL() : ''),
       topLevelUrl: contents.getURL(), rendererDocumentUrl, isMainFrame: details.isMainFrame })
   })
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    // 教程只开放这两个固定 HTTPS 地址，仍禁止创建应用内窗口或任意外链。
+    if (['https://www.runninghub.cn/vip-rights/2', 'https://www.runninghub.cn/workspace'].includes(url)) {
+      void shell.openExternal(url).catch(() => {
+        if (!window.isDestroyed()) void dialog.showMessageBox(window, { type: 'error', message: '无法打开浏览器，请复制教程中的地址手动访问。' })
+      })
+    }
+    return { action: 'deny' }
+  })
   window.webContents.on('will-navigate', (event) => event.preventDefault())
   if (options?.assembly) window.on('page-title-updated', (event) => event.preventDefault())
   window.webContents.on('will-prevent-unload', (event) => {

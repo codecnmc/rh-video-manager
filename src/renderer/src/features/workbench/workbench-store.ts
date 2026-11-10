@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { VideoDraft } from '@contracts/video'
 
-export type WorkbenchView = 'video' | 'image-generation' | 'assembly' | 'script-library' | 'settings' | 'skills' | 'extension-page' | 'assets' | 'accounts' | 'workflows' | 'mcp' | 'extensions' | 'tasks'
+export type WorkbenchView = 'tutorial' | 'video' | 'image-generation' | 'assembly' | 'script-library' | 'settings' | 'skills' | 'extension-page' | 'assets' | 'accounts' | 'workflows' | 'mcp' | 'extensions' | 'tasks'
 interface WorkbenchUi {
   projectId: string | null
   episodeId: string | null
