@@ -28,6 +28,7 @@ export const videoDraftSchema = z.object({
   resolution: z.enum(['720P', '1080P']),
   instance: z.enum(['default', 'plus', 'ultra']),
   instanceMode: z.enum(['auto', 'manual']).default('manual'),
+  combatEnabled: z.boolean().optional(),
   shotContinuity: z.enum(['independent', 'continuous']).optional(),
   // 描述本段到下一段的出向衔接；旧草稿缺省为切镜，不补做历史素材。
   nextTransition: z.enum(['cut', 'continuous']).optional(),

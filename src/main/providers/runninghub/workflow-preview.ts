@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { findCombatSwitches } from './combat-switch'
 import type { PreviewCapabilities } from '../../../shared/contracts/preview'
 
 type VideoKind = 'draft' | 'final'
@@ -13,7 +14,7 @@ export const workflowPreviewDefinitionSchema = z.object({
   samplingNodes: z.array(z.string().min(1).max(100)).max(5000),
   videoOutputs: z.array(z.object({ nodeId: z.string().min(1).max(100), kind: z.enum(['draft', 'final']), prefix: z.string().min(1).max(256) })).max(5000),
   capabilities: z.object({ status: z.literal('ready'), sampling: z.boolean(), draft: z.boolean(), final: z.boolean(),
-    unclassifiedOutputs: z.number().int().nonnegative() })
+    combat: z.boolean().optional(), unclassifiedOutputs: z.number().int().nonnegative() })
 }) satisfies z.ZodType<WorkflowPreviewDefinition>
 
 const responseSchema = z.object({ code: z.number(), data: z.object({ prompt: z.string().min(1).max(2 * 1024 * 1024) }) })
@@ -108,7 +109,7 @@ export function inspectWorkflowPreview(response: unknown): WorkflowPreviewDefini
   return {
     samplingNodes, videoOutputs,
     capabilities: {
-      status: 'ready', sampling: samplingNodes.length > 0,
+      status: 'ready', combat: findCombatSwitches(graph).length === 1, sampling: samplingNodes.length > 0,
       draft: videoOutputs.some((output) => output.kind === 'draft'),
       final: videoOutputs.some((output) => output.kind === 'final'), unclassifiedOutputs
     }

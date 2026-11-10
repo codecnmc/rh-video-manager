@@ -1,4 +1,5 @@
 import { openAsBlob } from 'node:fs'
+import { findCombatSwitches } from './combat-switch'
 import { stat } from 'node:fs/promises'
 import { extname } from 'node:path'
 import { z } from 'zod'
@@ -70,6 +71,9 @@ export function prepareH3Graph(response: unknown, draft: VideoDraft): { graph: G
   if (envelope.code !== 0) throw new Error('线上工作流读取失败')
   const prompt = z.object({ prompt: z.string().max(2 * 1024 * 1024) }).parse(envelope.data).prompt
   const graph = withoutNotifications(graphSchema.parse(JSON.parse(prompt) as unknown))
+  const combatSwitches = findCombatSwitches(graph)
+  if (combatSwitches.length > 1 || draft.combatEnabled && combatSwitches.length !== 1) throw new Error('当前工作流没有唯一可识别的武打开关，请检查所调度账号的默认工作流')
+  for (const node of combatSwitches) node.inputs.switch = draft.combatEnabled ?? false
   const candidates = Object.entries(graph).filter(([, node]) => node.class_type === 'FeiHouEasyH3RH' || node.class_type === 'MiniMaxH3ReferenceToVideo')
   if (candidates.length !== 1) throw new Error('线上工作流须包含一个受支持的 FeiHouEasyH3RH 或 MiniMaxH3ReferenceToVideo 全能参考节点')
   const [nodeId, node] = candidates[0]!

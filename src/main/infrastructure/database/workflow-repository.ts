@@ -7,7 +7,7 @@ const workflowSchema = z.object({
   id: z.string().uuid(), name: z.string(), workflowId: z.string(), enabled: z.boolean(), isDefault: z.boolean(),
   checkedAt: z.string().nullable(), error: z.string(), capabilities: z.object({
     status: z.enum(['checking', 'ready', 'failed']), sampling: z.boolean().nullable(), draft: z.boolean().nullable(),
-    final: z.boolean().nullable(), unclassifiedOutputs: z.number()
+    final: z.boolean().nullable(), combat: z.boolean().optional(), unclassifiedOutputs: z.number()
   }).nullable()
 })
 

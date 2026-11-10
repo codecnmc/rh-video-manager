@@ -133,7 +133,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
     const parsed = saveWorkflowSchema.parse(input)
     if (parsed.id && generation.hasPending(undefined, undefined, undefined, parsed.id)) throw new Error('该工作流仍有未完成或受理不明的视频任务，暂不能修改')
     if (!accounts.list().accounts.some((account) => account.id === parsed.accountId)) throw new Error('所属账号不存在')
-    return workflows.save(parsed)
+    return workflows.saveAndInspect(parsed, accounts.credential(parsed.accountId))
   })
   handle('workflows:delete', async (input) => {
     const { id } = entityIdSchema.parse(input)

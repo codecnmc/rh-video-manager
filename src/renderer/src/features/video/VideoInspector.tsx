@@ -24,6 +24,7 @@ import { AssetPicker } from '@/features/assets'
 import { selectInstanceTier } from './instance-policy'
 import { DialogueProduction, useSpeechCapabilities } from '@/features/production'
 import { useGeneration } from './use-generation'
+import { useWorkflows } from '@/features/workflows'
 
 interface VideoInspectorProps {
   draft: VideoDraft
@@ -40,6 +41,8 @@ interface VideoInspectorProps {
 
 export function VideoInspector({ draft, projectId, saved, saving, externalChanges, onSave, onDirty, onNotice, onSubmitted, initialTab = 'video' }: VideoInspectorProps) {
   const form = useForm<z.input<typeof videoDraftSchema>, unknown, VideoDraft>({ resolver: zodResolver(videoDraftSchema), defaultValues: draft })
+  const workflows = useWorkflows()
+  const supportsCombat = workflows.data?.some((workflow) => workflow.enabled && workflow.isDefault && workflow.capabilities?.combat) ?? false
   const references = useDraftReferences(draft.id, saved)
   const generation = useGeneration(projectId, draft.id, onNotice, onSubmitted)
   const [importing, setImporting] = useState(false)
@@ -171,6 +174,9 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
                 <SelectTrigger id="video-resolution"><SelectValue /></SelectTrigger><SelectContent>{['720P', '1080P'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
               </Select></div>
           </div>
+          {(supportsCombat || form.watch('combatEnabled')) && <label className="check-field"><Checkbox checked={form.watch('combatEnabled') ?? false}
+            disabled={!supportsCombat && !form.watch('combatEnabled') || saving || generation.pending}
+            onCheckedChange={(checked) => form.setValue('combatEnabled', checked === true, { shouldDirty: true })} />武打增强（加速工作流）</label>}
           {form.formState.errors.duration && <p className="field-error">时长须为 4–15 秒</p>}
           <div className="parameter-field"><label htmlFor="video-shot-continuity">当前镜头</label>
             <Select value={form.watch('shotContinuity') ?? 'independent'} disabled={saving || generation.pending} onValueChange={(value) => form.setValue('shotContinuity', videoDraftSchema.shape.shotContinuity.parse(value), { shouldDirty: true, shouldValidate: true })}>

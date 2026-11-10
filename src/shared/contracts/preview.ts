@@ -26,6 +26,7 @@ export interface PreviewMedia {
 }
 
 export interface PreviewCapabilities {
+  combat?: boolean
   status: 'checking' | 'ready' | 'failed'
   sampling: boolean | null
   draft: boolean | null
@@ -82,7 +83,7 @@ export const previewSnapshotSchema = z.object({
   id: z.string().uuid(), taskId: z.string().max(30), workflowId: z.string().max(100),
   workflowConfigId: z.string().uuid(), accountId: z.string().uuid(), projectId: z.string().uuid(), draftId: z.string().uuid(),
   capabilities: z.object({ status: z.enum(['checking', 'ready', 'failed']), sampling: z.boolean().nullable(),
-    draft: z.boolean().nullable(), final: z.boolean().nullable(), unclassifiedOutputs: z.number().int().nonnegative() }),
+    draft: z.boolean().nullable(), final: z.boolean().nullable(), combat: z.boolean().optional(), unclassifiedOutputs: z.number().int().nonnegative() }),
   connection: z.enum(['connecting', 'connected', 'reconnecting', 'disconnected', 'completed']),
   remoteStatus: z.enum(['unknown', 'queued', 'running', 'success', 'failed', 'cancelled']), stage: z.string().max(1000),
   submittedAt: z.string().datetime().optional(), runningObservedAt: z.string().datetime().optional(),

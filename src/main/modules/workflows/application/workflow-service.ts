@@ -30,6 +30,13 @@ export class WorkflowService {
       checkedAt: unchanged ? existing?.checkedAt ?? null : null, error: unchanged ? existing?.error ?? '' : '' })
     return this.list()
   }
+  async saveAndInspect(input: SaveWorkflow, credential: string): Promise<Workflow[]> {
+    const previous = input.id ? this.get(input.id) : null
+    const saved = this.save(input)
+    const workflow = saved.find((item) => item.accountId === input.accountId && item.workflowId === input.workflowId)!
+    if (!previous || previous.workflowId !== input.workflowId || previous.accountId !== input.accountId) return this.inspect(workflow.id, credential)
+    return saved
+  }
   remove(id: string): Workflow[] { this.get(id); this.repository.remove(id); return this.list() }
   async inspect(id: string, credential: string): Promise<Workflow[]> {
     const original = this.get(id)

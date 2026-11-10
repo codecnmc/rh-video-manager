@@ -16,7 +16,7 @@ export function PreviewVideoPlayer({ source, sampling, label, onDuration, onErro
   const [playing, setPlaying] = useState(false)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [muted, setMuted] = useState(sampling)
+  const [muted, setMuted] = useState(false)
   const [volume, setVolume] = useState(1)
   const [notice, setNotice] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
@@ -26,6 +26,13 @@ export function PreviewVideoPlayer({ source, sampling, label, onDuration, onErro
     return () => document.removeEventListener('fullscreenchange', update)
   }, [])
   useEffect(() => { setPosition(0); setDuration(0); setPlaying(false); setNotice('') }, [source])
+  useEffect(() => {
+    if (!sampling || !source || !video.current) return
+    // 有声自动播放可能被浏览器策略拒绝，保留手动播放入口并说明真实状态。
+    let active = true
+    void video.current.play().catch(() => { if (active) setNotice('有声自动播放未启动，请点击播放') })
+    return () => { active = false }
+  }, [source, sampling])
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement === player.current) await document.exitFullscreen()
