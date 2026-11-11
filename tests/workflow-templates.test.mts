@@ -4,12 +4,14 @@ import { readFileSync } from 'node:fs'
 import { WorkflowService } from '../src/main/modules/workflows/application/workflow-service.ts'
 import { workflowTemplateSchema } from '../src/shared/contracts/workflows.ts'
 
-test('仅导出加速模板，不写入账号工作流', () => {
+test('导出加速与声音模板，不写入账号工作流', () => {
   let writes = 0
   const service = new WorkflowService({ list: () => [], save: () => { writes++ }, remove: () => { writes++ } },
-    { inspect: async () => { throw new Error('不应联网') } }, () => 'unused', 'standard-content', 'accelerated-content')
+    { inspect: async () => { throw new Error('不应联网') } }, () => 'unused', 'standard-content', 'accelerated-content', { 'qwen3-voice-design': 'qwen3-content', 'voxcpm2-voice-clone': 'voxcpm2-content' })
   assert.equal(service.exportTemplate(), 'accelerated-content')
   assert.equal(service.exportTemplate('accelerated'), 'accelerated-content')
+  assert.equal(service.exportTemplate('qwen3-voice-design'), 'qwen3-content')
+  assert.equal(service.exportTemplate('voxcpm2-voice-clone'), 'voxcpm2-content')
   assert.equal(workflowTemplateSchema.safeParse('standard').success, false)
   assert.equal(writes, 0)
   assert.equal(workflowTemplateSchema.safeParse('../private.json').success, false)

@@ -5,9 +5,9 @@ import { WorkflowInspectionError } from '../ports/workflows'
 
 export class WorkflowService {
   constructor(private readonly repository: WorkflowRepository, private readonly gateway: WorkflowGateway, private readonly id: () => string,
-    _legacyTemplateContent = '', private readonly acceleratedTemplateContent = '') {}
-  exportTemplate(_template: WorkflowTemplate = 'accelerated'): string {
-    const content = this.acceleratedTemplateContent
+    _legacyTemplateContent = '', private readonly acceleratedTemplateContent = '', private readonly additionalTemplates: Partial<Record<WorkflowTemplate, string>> = {}) {}
+  exportTemplate(template: WorkflowTemplate = 'accelerated'): string {
+    const content = template === 'accelerated' ? this.acceleratedTemplateContent : this.additionalTemplates[template]
     if (!content) throw new Error('工作流模板尚未配置')
     return content
   }
@@ -26,6 +26,7 @@ export class WorkflowService {
     return workflow
   }
   save(input: SaveWorkflow): Workflow[] {
+    if (input.kind === 'image') throw new Error('图片工作流模式已停用，原配置和历史记录保留')
     const existing = input.id ? this.get(input.id) : null
     if (this.list().some((entry) => entry.id !== input.id && entry.accountId === input.accountId && entry.workflowId === input.workflowId)) throw new Error('该账号的工作流 ID 已存在')
     const unchanged = existing?.workflowId === input.workflowId && existing.accountId === input.accountId && (existing.kind ?? 'video') === (input.kind ?? 'video')
@@ -45,7 +46,7 @@ export class WorkflowService {
   saveApplication(raw: SaveWorkflowApplication): Workflow[] {
     const input = saveWorkflowApplicationSchema.parse(raw)
     const workflow = this.get(input.id)
-    if (!workflow.form || workflow.kind === 'video' || workflow.checkedAt !== input.expectedCheckedAt || (workflow.application?.updatedAt ?? null) !== input.expectedUpdatedAt) throw new Error('工作流或应用配置已更新，请重新打开编辑')
+    if (!workflow.form || workflow.kind !== 'audio' || workflow.checkedAt !== input.expectedCheckedAt || (workflow.application?.updatedAt ?? null) !== input.expectedUpdatedAt) throw new Error('工作流或应用配置已更新，请重新打开编辑')
     if (input.fields.length !== workflow.form.fields.length || new Set(input.fields.map((field) => field.key)).size !== input.fields.length) throw new Error('请配置全部输入字段且不要重复')
     for (const field of workflow.form.fields) {
       const configured = input.fields.find((item) => item.key === field.key)
@@ -60,6 +61,7 @@ export class WorkflowService {
   }
   async inspect(id: string, credential: string): Promise<Workflow[]> {
     const original = this.get(id)
+    if (original.kind === 'image') throw new Error('图片工作流模式已停用，原配置和历史记录保留')
     try {
       const video = (original.kind ?? 'video') === 'video'
       const capabilities = video ? await this.gateway.inspect(original.workflowId, credential) : null

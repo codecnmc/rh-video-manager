@@ -130,7 +130,8 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   handle('workflows:export-template', async (input, window) => {
     const { template } = z.object({ template: workflowTemplateSchema.default('accelerated') }).parse(input ?? {})
     const content = workflows.exportTemplate(template)
-    const selected = await dialog.showSaveDialog(window, { title: '下载加速版工作流', defaultPath: 'H3全能参考工作流-加速版.json',
+    const names = { accelerated: 'H3全能参考工作流-加速版', 'qwen3-voice-design': 'Qwen3 TTS语音生成 音色设计', 'voxcpm2-voice-clone': 'VoxCPM2+音色克隆' }
+    const selected = await dialog.showSaveDialog(window, { title: `下载${names[template]}`, defaultPath: `${names[template]}.json`,
       filters: [{ name: 'ComfyUI 工作流', extensions: ['json'] }] })
     if (selected.canceled || !selected.filePath) return false
     try { await writeFile(selected.filePath, content, 'utf8') }

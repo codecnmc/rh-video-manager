@@ -18,6 +18,8 @@
 .workflow-template-note p { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; }
 .workflow-template-note p + p { margin-top: 6px; }
 .workflow-template-note strong { color: #30434a; font-weight: 600; }
+.workflow-sound-downloads { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.workflow-sound-downloads > span { font-size: 12px; margin-right: 4px; }
 .workflow-result-panel { min-width: 0; }
 .workflow-result-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .workflow-result-heading h3 { margin: 0; }

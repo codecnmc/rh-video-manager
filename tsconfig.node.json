@@ -9,6 +9,7 @@
   "include": [
     "electron.vite.config.ts",
     "src/main/**/*.ts",
+    "src/main/providers/runninghub/templates/*.json",
     "src/preload/**/*.ts",
     "src/shared/contracts/**/*.ts",
     "src/shared/media-naming.ts",

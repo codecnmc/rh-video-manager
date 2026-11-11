@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { PreviewCapabilities } from './preview'
-export const workflowTemplateSchema = z.enum(['accelerated'])
+export const workflowTemplateSchema = z.enum(['accelerated', 'qwen3-voice-design', 'voxcpm2-voice-clone'])
 export type WorkflowTemplate = z.infer<typeof workflowTemplateSchema>
 export const workflowKindSchema = z.enum(['video', 'audio', 'image'])
 export type WorkflowKind = z.infer<typeof workflowKindSchema>

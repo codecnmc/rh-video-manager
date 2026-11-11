@@ -31,6 +31,8 @@ import { registerWorkbench } from '../ipc/register-workbench'
 import { AccountService } from '../modules/accounts'
 import { WorkflowService } from '../modules/workflows'
 import h3AcceleratedTemplate from '../providers/runninghub/h3-accelerated-template.json' with { type: 'json' }
+import qwen3VoiceTemplate from '../providers/runninghub/templates/qwen3-voice-design.json' with { type: 'json' }
+import voxcpm2VoiceTemplate from '../providers/runninghub/templates/voxcpm2-voice-clone.json' with { type: 'json' }
 import { ReferenceService, LibraryService } from '../modules/assets'
 import { VideoService } from '../modules/video'
 import { SqliteVideoDraftRepository } from '../infrastructure/database/video-repository'
@@ -175,7 +177,7 @@ export async function initializeWorkbench(): Promise<void> {
   })
   const accounts = new AccountService(new SqliteAccountRepository(database.connection), new SafeStorageCredentialVault(), new RunningHubAccountGateway(), randomUUID)
   const workflows = new WorkflowService(new SqliteWorkflowRepository(database.connection), new RunningHubWorkflowGateway(), randomUUID,
-    '', JSON.stringify(h3AcceleratedTemplate, null, 2))
+    '', JSON.stringify(h3AcceleratedTemplate, null, 2), { 'qwen3-voice-design': JSON.stringify(qwen3VoiceTemplate, null, 2), 'voxcpm2-voice-clone': JSON.stringify(voxcpm2VoiceTemplate, null, 2) })
   const assembly = new AssemblyService(new SqliteAssemblyRepository(database.connection), { get: (id) => library.get(id) }, randomUUID)
   const library: LibraryService = new LibraryService(new SqliteAssetRepository(database.connection),
     new ManagedReferenceFiles(join(mediaDirectory, 'assets')), randomUUID, (id) => {

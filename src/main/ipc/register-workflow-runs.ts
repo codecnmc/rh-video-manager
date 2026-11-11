@@ -22,7 +22,7 @@ export function registerWorkflowRuns(handle: DesktopHandle, runs: WorkflowRunSer
     const parsed = z.object({ workflowId: z.string().uuid(), key: z.string().min(1).max(100) }).parse(input)
     const workflow = workflows.get(parsed.workflowId)
     const field = workflow.form?.fields.find((item) => item.key === parsed.key)
-    if (!workflow.enabled || !field || field.type !== 'image' && field.type !== 'audio') throw new Error('媒体字段不存在，请重新检测')
+    if (workflow.kind !== 'audio' || !workflow.enabled || !field || field.type !== 'image' && field.type !== 'audio') throw new Error('媒体字段不存在，请重新检测')
     const selected = await dialog.showOpenDialog(window, { title: '选择工作流参考素材', properties: ['openFile'], filters: [{ name: '参考素材', extensions: field.type === 'audio' ? ['mp3', 'wav', 'flac'] : referenceExtensions.image }] })
     if (selected.canceled) return null
     return (await library.import({ projectId: null, categoryId: null, kind: field.type, tags: ['工作流参考'], prompt: '', notes: '' }, selected.filePaths))[0] ?? null

@@ -41,7 +41,8 @@ export class WorkflowRunService {
       return duplicate
     }
     const workflow = this.context.workflow(input.workflowId)
-    if (!workflow.accountId || !workflow.enabled || workflow.kind !== 'audio' && workflow.kind !== 'image') throw new Error('请选择启用的声音或图片工作流')
+    if (workflow.kind === 'image') throw new Error('图片工作流模式已停用，无法提交新任务')
+    if (!workflow.accountId || !workflow.enabled || workflow.kind !== 'audio') throw new Error('请选择启用的声音工作流')
     if (!workflow.form || !workflow.checkedAt || workflow.checkedAt !== input.expectedCheckedAt) throw new Error('工作流输入已变化，请重新检测并填写')
     if (workflow.form.fields.some((field) => /^input-\d+$/.test(field.key))) throw new Error('字段识别已升级，请重新检测一次工作流')
     if (workflow.error || workflow.application?.needsReview) throw new Error('请先完成工作流检测及应用字段复核')
