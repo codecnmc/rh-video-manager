@@ -1,0 +1,16 @@
+.skills-page { container-type: inline-size; }
+.skills-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.skill-card { display: flex; flex-direction: column; min-width: 0; padding: 22px; border: 1px solid var(--border); border-radius: 8px; background: white; }
+.skill-card h3 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; font-weight: 600; line-height: 1.5; }
+.skill-card h3 > svg { color: var(--primary); }
+.skill-card-id { margin: 8px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.skill-card-scope { margin: 18px 0 20px; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.skill-card-dependency { margin: -8px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.skill-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+@container (max-width: 1100px) {
+  .skills-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 700px) {
+  .skills-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .skill-card { padding: 18px; }
+}

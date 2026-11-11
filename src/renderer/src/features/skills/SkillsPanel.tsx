@@ -4,6 +4,7 @@ import { faDownload, faFileImport, faWandMagicSparkles } from '@fortawesome/free
 import { Button } from '@/components/ui/button'
 import { desktop, unwrap } from '@/shared/lib/desktop'
 import type { BuiltinSkillId } from '../../../../shared/contracts/skills'
+import './skills.css'
 
 const skills: { id: BuiltinSkillId; title: string; scope: string }[] = [
   { id: 'workbench-storyboard', title: '导演分镜', scope: '剧本拆解 · 机位表演 · 时间轴 · 声音与剪辑交接' },
@@ -27,12 +28,14 @@ export function SkillsPanel({ onNotice }: { onNotice: (message: string) => void 
     } catch (failure) { setError(failure instanceof Error ? failure.message : '技能操作失败') }
     finally { setBusy(false) }
   }
-  return <section className="management-page settings-page"><div className="management-toolbar"><h2>Skill</h2><span className="muted">内置技能</span></div>
+  return <section className="management-page skills-page"><div className="management-toolbar"><h2>Skill</h2><span className="muted">内置技能 · {skills.length}</span></div>
     {error && <p className="field-error" role="alert">{error}</p>}
-    {skills.map((skill) => <section className="settings-section" key={skill.id}><h3><FontAwesomeIcon icon={faWandMagicSparkles} /> {skill.title}</h3>
-      <dl><dt>技能标识</dt><dd>{skill.id}</dd><dt>范围</dt><dd>{skill.scope}</dd>
-        {skill.id === 'jianying-draft-editor' && <><dt>运行依赖</dt><dd>Python 与 pyJianYingDraft 需另行配置，未打包</dd></>}</dl>
-      <div className="button-row"><Button disabled={busy} onClick={() => void act(true, skill.id)}><FontAwesomeIcon icon={faFileImport} />导入 Codex</Button>
+    <div className="skills-grid">{skills.map((skill) => <article className="skill-card" key={skill.id} aria-labelledby={`skill-title-${skill.id}`}>
+      <h3 id={`skill-title-${skill.id}`}><FontAwesomeIcon icon={faWandMagicSparkles} />{skill.title}</h3>
+      <p className="skill-card-id"><span className="sr-only">技能标识：</span>{skill.id}</p>
+      <p className="skill-card-scope"><span className="sr-only">范围：</span>{skill.scope}</p>
+      {skill.id === 'jianying-draft-editor' && <p className="skill-card-dependency">运行依赖：Python 与 pyJianYingDraft 需另行配置，未打包</p>}
+      <div className="skill-card-actions"><Button disabled={busy} onClick={() => void act(true, skill.id)}><FontAwesomeIcon icon={faFileImport} />导入 Codex</Button>
         <Button variant="outline" disabled={busy} onClick={() => void act(false, skill.id)}><FontAwesomeIcon icon={faDownload} />导出技能目录</Button></div>
-    </section>)}</section>
+    </article>)}</div></section>
 }
