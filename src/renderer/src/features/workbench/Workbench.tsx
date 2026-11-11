@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faFilm, faPlus, faChevronDown, faBookOpen, faVideo, faImage, faImages, faListCheck, faClapperboard,
-  faDiagramProject, faUsers, faPlug, faGear, faRotateRight, faTriangleExclamation, faXmark, faTrash, faPuzzlePiece, faPen, faBars, faAnglesLeft, faArrowUpRightFromSquare } from '@fortawesome/free-solid-svg-icons'
+  faDiagramProject, faUsers, faPlug, faGear, faRotateRight, faTriangleExclamation, faXmark, faTrash, faPuzzlePiece, faPen, faBars, faAnglesLeft, faArrowUpRightFromSquare, faEllipsis, faLayerGroup } from '@fortawesome/free-solid-svg-icons'
 import type { Project, Workspace } from '@contracts/workspace'
 import type { VideoDraft } from '@contracts/video'
 import type { PreviewKind, PreviewNotificationTarget, PreviewSnapshot } from '@contracts/preview'
@@ -32,7 +32,7 @@ import { summarizeQueue } from './queue-state'
 import { NameDialog } from './components/NameDialog'
 import { Dialog } from '@/components/ui/dialog'
 import { TaskHeaderStatus } from './components/TaskHeaderStatus'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { VideoDraftList } from './components/VideoDraftList'
 import { reorderDraftSubset } from './draft-order'
 import { desktop, unwrap } from '@/shared/lib/desktop'
@@ -84,6 +84,9 @@ export function Workbench() {
 
 function WorkbenchContent({ detached }: { detached: boolean }) {
   const [guideOpen, setGuideOpen] = useState(false)
+  const [managementOpen, setManagementOpen] = useState(false)
+  const [projectActionsOpen, setProjectActionsOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [assemblyProjects, setAssemblyProjects] = useState<Array<string | null>>([])
   const [assemblyWindowRequests, setAssemblyWindowRequests] = useState<Record<string, number>>({})
@@ -141,6 +144,12 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
   const selectedExtension = extensions.data?.find((item) => item.id === extensionSelection?.extensionId)
   const extensionTitle = selectedExtension?.manifest.contributes.pages?.find((page) => page.id === extensionSelection?.pageId)?.title ?? '插件页面'
   const headings = { tutorial: '使用教程', video: '视频生成', 'image-generation': '素材生成', assembly: '排片剪辑库', 'script-library': '剧本库', settings: '设置', skills: 'Skill', 'extension-page': extensionTitle, assets: '素材库', accounts: '账号池', workflows: '工作流总览', mcp: 'MCP', extensions: '插件', tasks: '任务队列' }
+  const managementActive = ['workflows', 'accounts', 'mcp', 'skills', 'extensions'].includes(ui.view)
+
+  useEffect(() => {
+    // 引导或其他入口进入管理页时展开分组，避免当前页面的菜单被隐藏。
+    if (managementActive) setManagementOpen(true)
+  }, [ui.view, managementActive])
 
   useEffect(() => {
     if (detached || !data) return
@@ -211,12 +220,14 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
   async function navigateGuide(view: GuideView): Promise<boolean> {
     if (ui.view === view) {
       if (ui.sidebarCollapsed) ui.toggleSidebar()
+      if (['accounts', 'workflows', 'mcp'].includes(view)) setManagementOpen(true)
       return true
     }
     let changed = false
     await navigate(() => {
       ui.setView(view)
       if (ui.sidebarCollapsed) ui.toggleSidebar()
+      if (['accounts', 'workflows', 'mcp'].includes(view)) setManagementOpen(true)
       changed = true
     })
     return changed
@@ -376,14 +387,20 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
     }}><FontAwesomeIcon icon={faRotateRight} /></Button></div>}</header>
 
   return <Popover open={ui.queueOpen} onOpenChange={ui.setQueueOpen}><div className={`workbench${ui.sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
-    <aside className="sidebar" id="workbench-sidebar" aria-label="主菜单"><div className="sidebar-scroll"><div className="sidebar-section-title project-heading"><span>项目</span><div className="button-row">
-      <Button variant="ghost" size="icon" title={dirty ? '请先保存当前修改再重命名项目' : '重命名当前项目'} aria-label="重命名当前项目" disabled={!project || busy || dirty} onClick={() => { if (project) setRenamingProject({ id: project.id, name: project.name }) }}><FontAwesomeIcon icon={faPen} /></Button>
-      <Button variant="ghost" size="icon" title="删除当前项目" aria-label="删除当前项目" disabled={!project || busy} onClick={() => { if (project) void removeEntity('project', project.id, project.name) }}><FontAwesomeIcon icon={faTrash} /></Button>
-      <Button data-guide-target="new-project" variant="ghost" size="icon" title="新建项目" aria-label="新建项目" onClick={() => navigate(() => ui.setDialog('project'))}><FontAwesomeIcon icon={faPlus} /></Button></div></div>
+    <aside className="sidebar" id="workbench-sidebar" aria-label="主菜单"><div className="sidebar-scroll"><div className="sidebar-section-title project-heading"><span>当前项目</span>
+      <Popover open={projectActionsOpen} onOpenChange={setProjectActionsOpen}>
+        <PopoverTrigger asChild><Button data-guide-target="new-project" variant="ghost" size="icon" title="项目操作：新建、重命名、删除" aria-label="项目操作：新建、重命名、删除"><FontAwesomeIcon icon={faEllipsis} /></Button></PopoverTrigger>
+        <PopoverContent className="sidebar-action-popover" sideOffset={6} align="start" aria-label="项目操作">
+          <Button variant="ghost" onClick={() => { setProjectActionsOpen(false); void navigate(() => ui.setDialog('project')) }}><FontAwesomeIcon icon={faPlus} />新建项目</Button>
+          <Button variant="ghost" title={dirty ? '请先保存当前修改再重命名项目' : '重命名当前项目'} disabled={!project || busy || dirty} onClick={() => { setProjectActionsOpen(false); if (project) setRenamingProject({ id: project.id, name: project.name }) }}><FontAwesomeIcon icon={faPen} />重命名项目</Button>
+          <Button variant="ghost" disabled={!project || busy} onClick={() => { setProjectActionsOpen(false); if (project) void removeEntity('project', project.id, project.name) }}><FontAwesomeIcon icon={faTrash} />删除项目</Button>
+        </PopoverContent>
+      </Popover></div>
       <div className="project-switcher"><label className="sr-only" htmlFor="project-switch">当前项目</label><FontAwesomeIcon icon={faFilm} />
         <SelectField id="project-switch" disabled={data.projects.length === 0} value={project?.id ?? ''} onChange={(event) => navigate(() => { ui.selectProject(event.target.value); setGroupFilter('all'); setSearch(''); setSelectedDrafts([]); setActiveTask(null); setGroupDialog(null) })}>
           {!data.projects.length && <SelectOption value="">暂无项目</SelectOption>}{data.projects.map((item) => <SelectOption key={item.id} value={item.id}>{item.name}</SelectOption>)}</SelectField></div>
       <div className="primary-navigation">
+        <div className="sidebar-group-label">创作</div>
         <SidebarWindowMenu disabled={openingSidebarWindow} onOpen={() => void openSidebarWindow('video')}><Button data-guide-target="video" variant="unstyled" title="视频生成 · 右键可在新窗口打开" aria-label="视频生成" className={`nav-item ${ui.view === 'video' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('video'))}><FontAwesomeIcon icon={faVideo} /><span>视频生成</span></Button></SidebarWindowMenu>
         <SidebarWindowMenu onOpen={() => void openSidebarWindow('assembly')}><Button variant="unstyled" title="排片剪辑库 · 右键可在新窗口打开" aria-label="排片剪辑库" className={`nav-item ${ui.view === 'assembly' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('assembly'))}><FontAwesomeIcon icon={faClapperboard} /><span>排片剪辑库</span></Button></SidebarWindowMenu>
         <SidebarWindowMenu disabled={openingSidebarWindow} onOpen={() => void openSidebarWindow('image-generation')}><Button data-guide-target="image-generation" variant="unstyled" title="素材生成 · 右键可在新窗口打开" aria-label="素材生成" className={`nav-item ${ui.view === 'image-generation' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('image-generation'))}><FontAwesomeIcon icon={faImage} /><span>素材生成</span></Button></SidebarWindowMenu>
@@ -392,14 +409,24 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
         {(extensions.data ?? []).filter((extension) => extension.enabled).flatMap((extension) => (extension.manifest.contributes.pages ?? []).map((page) =>
           <Button variant="unstyled" key={`${extension.id}/${page.id}`} title={`${extension.manifest.displayName} · ${page.title}`} className={`nav-item ${ui.view === 'extension-page' && extensionSelection?.pageId === page.id ? 'active' : ''}`} onClick={() => navigate(() => { setExtensionSelection({ extensionId: extension.id, pageId: page.id }); ui.setView('extension-page') })}><FontAwesomeIcon icon={faPuzzlePiece} /><span>{page.title}</span></Button>))}
       </div>
-      <div className="sidebar-bottom">
-        <Button variant="unstyled" title="使用教程" aria-label="使用教程" className={`nav-item ${ui.view === 'tutorial' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tutorial'))}><FontAwesomeIcon icon={faBookOpen} /><span>使用教程</span></Button>
-        <Button data-guide-target="tasks" variant="unstyled" title="任务队列" aria-label="任务队列" className={`nav-item ${ui.view === 'tasks' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /><span>任务队列</span><span className="nav-count">{previews.data ? allTasks.length : '未读取'}</span></Button>
+      <div className="sidebar-management">
+        <Button variant="unstyled" title="展开或收起管理工具" aria-label="管理工具" aria-expanded={managementOpen} aria-controls="sidebar-management-items" className={`nav-item sidebar-group-toggle ${managementActive && !managementOpen ? 'active' : ''}`} onClick={() => setManagementOpen((value) => !value)}><FontAwesomeIcon icon={faLayerGroup} /><span>管理</span><FontAwesomeIcon className="sidebar-group-chevron" icon={faChevronDown} rotation={managementOpen ? 180 : undefined} /></Button>
+        <div id="sidebar-management-items" hidden={!managementOpen}>
         <Button data-guide-target="workflows" variant="unstyled" title="工作流总览" aria-label="工作流总览" className={`nav-item ${ui.view === 'workflows' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('workflows'))}><FontAwesomeIcon icon={faDiagramProject} /><span>工作流总览</span></Button>
         <Button data-guide-target="accounts" variant="unstyled" title="账号池" aria-label="账号池" className={`nav-item ${ui.view === 'accounts' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('accounts'))}><FontAwesomeIcon icon={faUsers} /><span>账号池</span></Button>
         <Button data-guide-target="mcp" variant="unstyled" title="MCP" aria-label="MCP" className={`nav-item ${ui.view === 'mcp' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('mcp'))}><FontAwesomeIcon icon={faPlug} /><span>MCP</span></Button>
         <Button variant="unstyled" title="Skill" aria-label="Skill" className={`nav-item ${ui.view === 'skills' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('skills'))}><FontAwesomeIcon icon={faBookOpen} /><span>Skill</span></Button>
-        <Button variant="unstyled" title="设置" aria-label="设置" className={`nav-item ${ui.view === 'settings' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('settings'))}><FontAwesomeIcon icon={faGear} /><span>设置</span></Button>
+        </div>
+      </div>
+      <div className="sidebar-bottom">
+        <Button data-guide-target="tasks" variant="unstyled" title="任务队列" aria-label="任务队列" className={`nav-item ${ui.view === 'tasks' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /><span>任务队列</span><span className="nav-count">{previews.data ? allTasks.length : '未读取'}</span></Button>
+        <Popover open={helpOpen} onOpenChange={setHelpOpen}>
+          <PopoverTrigger asChild><Button variant="unstyled" title="帮助与设置" aria-label="帮助与设置" className={`nav-item ${ui.view === 'tutorial' || ui.view === 'settings' ? 'active' : ''}`}><FontAwesomeIcon icon={faGear} /><span>帮助与设置</span></Button></PopoverTrigger>
+          <PopoverContent className="sidebar-action-popover" side="right" sideOffset={8} align="end" aria-label="帮助与设置">
+            <Button variant="ghost" onClick={() => { setHelpOpen(false); void navigate(() => ui.setView('tutorial')) }}><FontAwesomeIcon icon={faBookOpen} />使用教程</Button>
+            <Button variant="ghost" onClick={() => { setHelpOpen(false); void navigate(() => ui.setView('settings')) }}><FontAwesomeIcon icon={faGear} />设置</Button>
+          </PopoverContent>
+        </Popover>
       </div></div><PoolStatus onNotice={setNotice} /><div className="local-status"><span className="ready-dot" /><span>SQLite · 本地存储</span></div>
     </aside>
     <main className="workspace-content">{ui.view !== 'image-generation' && workspaceHeader}

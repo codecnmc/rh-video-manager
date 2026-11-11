@@ -9,7 +9,7 @@ import { usePreferences } from './use-preferences'
 
 export type GuideView = 'tutorial' | 'video' | 'assets' | 'accounts' | 'workflows' | 'image-generation' | 'tasks' | 'mcp'
 const steps: { view: GuideView; target: string; title: string; icon: typeof faVideo; text: string }[] = [
-  { view: 'video', target: 'new-project', title: '新建项目', icon: faFolderOpen, text: '这里创建项目，再在视频生成页新建视频草稿。引导不会替你创建示例数据；没有项目时也可以先了解后续入口。' },
+  { view: 'video', target: 'new-project', title: '新建项目', icon: faFolderOpen, text: '点击当前项目旁的“更多”按钮，选择“新建项目”，再在视频生成页新建视频草稿。引导不会替你创建示例数据；没有项目时也可以先了解后续入口。' },
   { view: 'assets', target: 'assets', title: '素材库', icon: faImages, text: '已切到素材库。导入本地图片、视频和音频只会保存到本地，不会立即上传。双击素材可预览，右键素材或文件夹可复制、编辑和移动。' },
   { view: 'accounts', target: 'accounts', title: '账号池', icon: faUsers, text: '已切到账号池。在这里添加 RunningHub 账号，API Key 加密保存在本机。消费明细入口可查看成功任务消耗积分，平台未返回的费用显示为未知。' },
   { view: 'workflows', target: 'workflows', title: '工作流总览', icon: faDiagramProject, text: '已切到工作流总览。工作流必须归属具体账号；提交生成前需要配置并明确选择账号和工作流，引导不会自动配置或发起生成。' },
