@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCheck, faSpinner, faFolderOpen, faMicrophone, faMusic, faImage, faClockRotateLeft, faArrowLeft, faExpand, faTrash } from '@fortawesome/free-solid-svg-icons'
 import { Button } from '@/components/ui/button'
@@ -8,12 +8,13 @@ import { WorkflowRunList, workflowRunLabels } from './WorkflowRunList'
 import { useWorkflowRuns } from './use-workflow-runs'
 import type { WorkflowRun } from '@contracts/workflow-runs'
 
-export function WorkflowHistory({ workflowId, accountId, compact = false, disabled = false, onSelectRun, onNotice }: { disabled?: boolean; onSelectRun?: (run: WorkflowRun) => Promise<boolean>; compact?: boolean; workflowId?: string; accountId?: string; onNotice: (message: string) => void }) {
+export function WorkflowHistory({ workflowId, accountId, compact = false, disabled = false, latestRunToken = 0, onSelectRun, onNotice }: { latestRunToken?: number; disabled?: boolean; onSelectRun?: (run: WorkflowRun) => Promise<boolean>; compact?: boolean; workflowId?: string; accountId?: string; onNotice: (message: string) => void }) {
   const history = useWorkflowRuns(workflowId)
   const [busy, setBusy] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState('')
   const [kind, setKind] = useState('all')
   const [drawer, setDrawer] = useState<'list' | 'preview' | null>(null)
+  useEffect(() => { setSelectedId(''); setDrawer(null) }, [latestRunToken])
   const [image, setImage] = useState<{ id: string; name: string } | null>(null)
   const items = (history.data ?? []).filter((run) => (!accountId || run.accountId === accountId) && (kind === 'all' || run.kind === kind))
   const latest = items[0]

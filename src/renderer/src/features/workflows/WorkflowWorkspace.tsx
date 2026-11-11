@@ -6,6 +6,7 @@ import type { RestoredWorkflowInput } from './restore-workflow-input'
 import { Button } from '@/components/ui/button'
 import { confirmAction } from '@/components/ui/confirmation'
 import { WorkflowInputs } from './WorkflowInputs'
+import { VoiceReferenceHint } from './VoiceReferenceHint'
 import { WorkflowApplicationEditor } from './WorkflowApplicationEditor'
 import { WorkflowHistory } from './WorkflowHistory'
 import { useWorkflowRuns } from './use-workflow-runs'
@@ -20,6 +21,7 @@ export function WorkflowWorkspace({ workflow, onBack, onDirty, onNotice }: { wor
   const [editing, setEditing] = useState(false)
   const [working, setWorking] = useState(false)
   const [restoring, setRestoring] = useState(false)
+  const [latestRunToken, setLatestRunToken] = useState(0)
   const [replayed, setReplayed] = useState<{ key: number; signature: string; input: RestoredWorkflowInput } | null>(null)
   const reportDirty = useCallback((value: boolean) => { setDirty(value); onDirty(value) }, [onDirty])
   return <section className={`management-page workflow-workspace ${editing ? 'workflow-workspace-editing' : ''}`}><header className="management-toolbar workflow-workspace-toolbar"><div className="workflow-workspace-heading"><Button className="workflow-back-button" variant="outline" onClick={async () => { if (dirty && !await confirmAction('放弃未保存的修改并返回工作流？')) return; onDirty(false); onBack() }}><FontAwesomeIcon icon={faArrowLeft} />返回工作流</Button><div><h2>{workflow.name}</h2><span className="muted">{workflow.kind === 'audio' ? '声音生成 / 克隆' : '图片生成'} · 产物进入公共素材库</span></div></div><div className="button-row">
@@ -30,10 +32,12 @@ export function WorkflowWorkspace({ workflow, onBack, onDirty, onNotice }: { wor
       onCancel={async () => { if (dirty && !await confirmAction('放弃未保存的应用配置？')) return; reportDirty(false); setEditing(false) }}
       onSave={async (fields) => { if (!workflow.checkedAt) throw new Error('请先检测工作流'); await workflows.saveApplication({ id: workflow.id, expectedCheckedAt: workflow.checkedAt, expectedUpdatedAt: workflow.application?.updatedAt ?? null, fields }); setEditing(false) }} />
       : <>{workflow.application?.needsReview && <p className="field-error" role="alert">工作流输入已变化，请进入“编辑应用”复核并保存后运行。</p>}
-    <div className="workflow-workspace-columns"><section><h3>运行输入</h3><WorkflowInputs key={`${workflow.id}-${workflow.checkedAt}-${workflow.application?.updatedAt}-${replayed?.key ?? 0}`} workflow={workflow} initial={replayed?.signature === `${workflow.checkedAt}-${workflow.application?.updatedAt}` ? replayed.input : undefined} blocked={restoring || checking} onBusy={setWorking}
+    <div className="workflow-workspace-columns"><section><h3>运行输入</h3>{workflow.kind === 'audio' && (workflow.form?.fields.some((field) => field.type === 'audio') || /克隆|clone/i.test(workflow.name)) && <VoiceReferenceHint onNotice={onNotice} />}<WorkflowInputs key={`${workflow.id}-${workflow.checkedAt}-${workflow.application?.updatedAt}-${replayed?.key ?? 0}`} workflow={workflow} initial={replayed?.signature === `${workflow.checkedAt}-${workflow.application?.updatedAt}` ? replayed.input : undefined} blocked={restoring || checking} onBusy={setWorking}
       onDirty={reportDirty} onChooseVoice={runs.chooseVoice} onChooseMedia={(key) => runs.chooseMedia(workflow.id, key)} onRun={async (values, instance) => {
-        return runs.start(workflow, values, instance)
-      }} /></section><WorkflowHistory workflowId={workflow.id} disabled={working || checking || restoring} onSelectRun={async (run) => {
+        const accepted = await runs.start(workflow, values, instance)
+        if (accepted) setLatestRunToken((value) => value + 1)
+        return accepted
+      }} /></section><WorkflowHistory workflowId={workflow.id} latestRunToken={latestRunToken} disabled={working || checking || restoring} onSelectRun={async (run) => {
         if (working || checking || restoring) return false
         if (!run.input) { onNotice('这条旧记录未保存入参快照，只能查看结果，无法恢复当时填写的数据'); return true }
         setRestoring(true)

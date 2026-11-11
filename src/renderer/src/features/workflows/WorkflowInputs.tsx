@@ -10,6 +10,7 @@ import { CheckboxField } from '@/components/ui/checkbox-field'
 import { VoicePicker } from '@/features/voices'
 import './workflow-inputs.css'
 import type { RestoredWorkflowInput } from './restore-workflow-input'
+import { workflowInputState } from './workflow-input-state'
 
 export function WorkflowInputs({ workflow, initial, blocked = false, onBusy, onRun, onChooseMedia, onChooseVoice, onDirty }: { workflow: Workflow; initial?: RestoredWorkflowInput; blocked?: boolean; onBusy?: (busy: boolean) => void;
   onRun?: (values: StartWorkflowRun['values'], instance: StartWorkflowRun['instance']) => Promise<boolean | void>;
@@ -21,7 +22,9 @@ export function WorkflowInputs({ workflow, initial, blocked = false, onBusy, onR
   const [instance, setInstance] = useState<StartWorkflowRun['instance']>(() => initial?.instance ?? 'default')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  useEffect(() => { onDirty?.(Object.keys(values).length > 0 || instance !== 'default') }, [values, instance, onDirty])
+  const state = workflowInputState(workflow, values, instance)
+  const [baseline, setBaseline] = useState(() => state)
+  useEffect(() => { onDirty?.(state !== baseline) }, [state, baseline, onDirty])
   useEffect(() => { onBusy?.(busy); return () => onBusy?.(false) }, [busy, onBusy])
   if (!workflow.form?.fields.length) return <p className="muted">尚未识别到可编辑输入，请先检测线上工作流。</p>
   const configured = workflow.application?.fields ?? workflow.form.fields.map((field): WorkflowApplication['fields'][number] => ({
@@ -65,7 +68,7 @@ export function WorkflowInputs({ workflow, initial, blocked = false, onBusy, onR
       inputs[field.key] = value
     }
     setBusy(true); setError('')
-    try { if (await onRun(inputs, instance) !== false) onDirty?.(false) } catch (failure) { setError(failure instanceof Error ? failure.message : '运行失败') } finally { setBusy(false) }
+    try { if (await onRun(inputs, instance) !== false) { setBaseline(state); onDirty?.(false) } } catch (failure) { setError(failure instanceof Error ? failure.message : '运行失败') } finally { setBusy(false) }
   }}>{initial?.warnings.length ? <div className="field-error" role="alert">{initial.warnings.map((warning) => <p key={warning}>{warning}</p>)}</div> : null}{legacyFields && <p className="field-error" role="alert">字段识别已升级，请先点击“重新检测”，再复核应用配置。</p>}<fieldset disabled={blocked || busy || legacyFields || workflow.application?.needsReview}>
     {configured.filter((field) => field.visibility === 'common').map(renderField)}
     {advanced.length > 0 && <details className="workflow-advanced"><summary>高级设置 <span className="muted">{advanced.length} 项</span></summary><div className="workflow-advanced-fields">{advanced.map(renderField)}</div></details>}
