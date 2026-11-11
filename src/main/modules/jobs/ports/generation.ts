@@ -54,5 +54,5 @@ export interface GenerationContext {
   references(draftId: string, projectId: string): GenerationMedia[]
   workflow(id: string): { accountId: string; workflowId: string }
   credential(accountId: string): string
-  capacity(accountId: string): Promise<{ limit: number; occupied: number }>
+  capacity(accountId: string): Promise<{ limit: number; occupied: number; externalReservations?: number }>
 }

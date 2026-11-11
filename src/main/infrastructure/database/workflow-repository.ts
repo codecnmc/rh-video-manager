@@ -1,10 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { z } from 'zod'
 import type { WorkflowRepository } from '../../modules/workflows'
-import type { Workflow } from '../../../shared/contracts/workflows'
+import { workflowKindSchema, workflowFormSchema, workflowApplicationSchema, type Workflow } from '../../../shared/contracts/workflows'
 
 const workflowSchema = z.object({
-  id: z.string().uuid(), name: z.string(), workflowId: z.string(), enabled: z.boolean(), isDefault: z.boolean(),
+  application: workflowApplicationSchema.nullable().optional(), kind: workflowKindSchema.default('video'), form: workflowFormSchema.nullable().optional(), id: z.string().uuid(), name: z.string(), workflowId: z.string(), enabled: z.boolean(), isDefault: z.boolean(),
   checkedAt: z.string().nullable(), error: z.string(), capabilities: z.object({
     status: z.enum(['checking', 'ready', 'failed']), sampling: z.boolean().nullable(), draft: z.boolean().nullable(),
     final: z.boolean().nullable(), combat: z.boolean().optional(), unclassifiedOutputs: z.number()
@@ -23,7 +23,7 @@ export class SqliteWorkflowRepository implements WorkflowRepository {
   save(workflow: Workflow): void {
     this.database.exec('BEGIN IMMEDIATE')
     try {
-      if (workflow.isDefault) this.database.prepare('UPDATE workflows SET is_default = 0 WHERE account_id = ?').run(workflow.accountId)
+      if (workflow.isDefault) this.database.prepare("UPDATE workflows SET is_default = 0 WHERE account_id = ? AND COALESCE(json_extract(data, '$.kind'), 'video') = ?").run(workflow.accountId, workflow.kind ?? 'video')
       this.database.prepare(`INSERT INTO workflows (id, account_id, workflow_id, is_default, data) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET account_id=excluded.account_id, workflow_id=excluded.workflow_id, is_default=excluded.is_default, data=excluded.data`)
         .run(workflow.id, workflow.accountId, workflow.workflowId, Number(workflow.isDefault), JSON.stringify(workflow))

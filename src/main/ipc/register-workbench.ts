@@ -1,3 +1,5 @@
+import { registerWorkflowRuns } from './register-workflow-runs'
+import type { WorkflowRunService } from '../modules/workflows'
 import { registerVoices } from './register-voices'
 import type { VoiceService } from '../modules/voices'
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
@@ -51,7 +53,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   prepareDownload: (media: PreviewMedia) => PreviewMedia = (media) => media,
   readTaskDiagnostics: (id: string) => string = () => { throw new Error('任务日志尚未配置') },
   personalLibrary?: { library: ScriptLibraryService; settings: SettingsService; pages: ExtensionPageService; assembly?: AssemblyService; assemblyExport?: AssemblyExportService; assemblyRenderer?: (ffmpeg: string, ffprobe: string) => AssemblyRenderer;
-    voices?: VoiceService; mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost; closePrompts?: WindowClosePromptHost }): void {
+    runs?: WorkflowRunService; voices?: VoiceService; mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost; closePrompts?: WindowClosePromptHost }): void {
   const handle = <T>(channel: string, action: (input: unknown, window: BrowserWindow) => Promise<T>) => {
     ipcMain.handle(channel, async (event, input: unknown): Promise<Result<T>> => {
       const window = BrowserWindow.fromWebContents(event.sender)
@@ -69,6 +71,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
       }
     })
   }
+  if (personalLibrary?.runs) registerWorkflowRuns(handle, personalLibrary.runs, workflows, library)
   if (personalLibrary?.voices) registerVoices(handle, personalLibrary.voices)
   handle('workspace:load', () => workspace.load())
   if (personalLibrary?.closePrompts) registerWindowClose(handle, personalLibrary.closePrompts)
@@ -110,6 +113,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   handle('accounts:list', async () => accounts.list())
   handle('accounts:save', async (input) => {
     const parsed = saveAccountSchema.parse(input)
+    if (parsed.id && personalLibrary?.runs?.hasPending(parsed.id)) throw new Error('该账号仍有工作流任务未完成或受理待核对')
     if (parsed.id && generation.hasPending(undefined, undefined, parsed.id)) throw new Error('该账号仍有未完成或受理不明的视频任务，暂不能修改账号配置')
     return accounts.save(parsed)
   })
@@ -118,14 +122,15 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
     if (generation.hasPending(undefined, undefined, id)) throw new Error('该账号仍有未完成或受理不明的视频任务，不能删除')
     if (previews.list().some((preview) => preview.accountId === id && preview.connection !== 'completed')) throw new Error('请先移除该账号的任务监听，再删除账号配置')
     if (workflows.list().some((workflow) => workflow.accountId === id)) throw new Error('请先删除该账号的工作流配置，再删除账号')
+    if (personalLibrary?.runs?.hasPending(id)) throw new Error('该账号仍有工作流任务未完成或受理待核对')
     return accounts.remove(id)
   })
   handle('accounts:refresh', async (input) => accounts.refresh(z.object({ id: z.string().uuid().nullable() }).parse(input).id))
   handle('workflows:list', async () => workflows.list())
   handle('workflows:export-template', async (input, window) => {
-    const { template } = z.object({ template: workflowTemplateSchema.default('standard') }).parse(input ?? {})
+    const { template } = z.object({ template: workflowTemplateSchema.default('accelerated') }).parse(input ?? {})
     const content = workflows.exportTemplate(template)
-    const selected = await dialog.showSaveDialog(window, { title: template === 'accelerated' ? '下载加速版工作流' : '下载标准版工作流', defaultPath: template === 'accelerated' ? 'H3全能参考工作流-加速版.json' : 'H3全能参考工作流-无通知.json',
+    const selected = await dialog.showSaveDialog(window, { title: '下载加速版工作流', defaultPath: 'H3全能参考工作流-加速版.json',
       filters: [{ name: 'ComfyUI 工作流', extensions: ['json'] }] })
     if (selected.canceled || !selected.filePath) return false
     try { await writeFile(selected.filePath, content, 'utf8') }
@@ -134,12 +139,14 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   })
   handle('workflows:save', async (input) => {
     const parsed = saveWorkflowSchema.parse(input)
+    if (parsed.id && personalLibrary?.runs?.hasPending(undefined, parsed.id)) throw new Error('工作流仍有未完成或受理待核对的任务')
     if (parsed.id && generation.hasPending(undefined, undefined, undefined, parsed.id)) throw new Error('该工作流仍有未完成或受理不明的视频任务，暂不能修改')
     if (!accounts.list().accounts.some((account) => account.id === parsed.accountId)) throw new Error('所属账号不存在')
     return workflows.saveAndInspect(parsed, accounts.credential(parsed.accountId))
   })
   handle('workflows:delete', async (input) => {
     const { id } = entityIdSchema.parse(input)
+    if (personalLibrary?.runs?.hasPending(undefined, id)) throw new Error('工作流仍有未完成或受理待核对的任务')
     if (generation.hasPending(undefined, undefined, undefined, id)) throw new Error('该工作流仍有未完成或受理不明的视频任务，不能删除')
     return workflows.remove(id)
   })

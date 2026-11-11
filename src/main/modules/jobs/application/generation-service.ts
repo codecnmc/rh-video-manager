@@ -85,15 +85,20 @@ export class GenerationService {
     return sources.length === 1 ? sources[0]!.id : undefined
   }
 
-  private capacityBlock(accountId: string, capacity: { limit: number; occupied: number }, replacements: Set<string>, currentId?: string): string | null {
+  reservationCount(accountId: string): number {
+    return this.repository.list().filter((job) => job.preview.accountId === accountId && !terminal(job.preview) && !job.preview.localReservationReleasedAt).length
+  }
+  private capacityBlock(accountId: string, capacity: { limit: number; occupied: number; externalReservations?: number }, replacements: Set<string>, currentId?: string): string | null {
     const reserved = this.repository.list().filter((job) => job.id !== currentId && job.preview.accountId === accountId &&
       !terminal(job.preview) && !job.preview.localReservationReleasedAt && !replacements.has(job.id))
     if (capacity.limit <= 0) return '远端同步的并发上限为 0，请核对该 Key 的并发权限'
     if (capacity.occupied >= capacity.limit) return `远端容量已满：当前任务 ${capacity.occupied}，并发上限 ${capacity.limit}`
-    if (reserved.length < capacity.limit) return null
+    const externalReservations = capacity.externalReservations ?? 0
+    if (reserved.length + externalReservations < capacity.limit) return null
     // 未确认结束的任务不能因账号队列为空就直接丢掉；提示具体占位，避免误报远端已满。
     const pending = reserved.map((job) => `${job.preview.taskId || job.id}${job.preview.cancelState === 'requested' ? '（取消已受理，终态待确认）' : '（未确认结束）'}`).join('、')
-    return `远端当前任务 ${capacity.occupied}/${capacity.limit}，但本地有 ${reserved.length} 笔未结束占位：${pending}。请刷新任务核对终态；同草稿重新生成须确认旧任务及重复计费风险`
+    if (externalReservations === 0) return `远端当前任务 ${capacity.occupied}/${capacity.limit}，但本地有 ${reserved.length} 笔未结束占位：${pending}。请刷新任务核对终态；同草稿重新生成须确认旧任务及重复计费风险`
+    return `远端当前任务 ${capacity.occupied}/${capacity.limit}，本地占位已满：视频 ${reserved.length} 笔，声音/图片 ${externalReservations} 笔。${pending ? `视频占位：${pending}。` : ''}请刷新任务核对终态；同草稿重新生成须确认旧任务及重复计费风险`
   }
   hasStorageActivity(): boolean {
     return this.hasPending() || this.hasLocalStorageActivity()

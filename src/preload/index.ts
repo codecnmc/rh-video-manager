@@ -6,6 +6,11 @@ import { assemblyExportProgressSchema } from '../shared/contracts/assembly-expor
 import { windowClosePromptSchema } from '../shared/contracts/window-close'
 
 const api: DesktopApi = {
+  listWorkflowRuns: (workflowId) => ipcRenderer.invoke('workflow-runs:list', { workflowId }),
+  startWorkflowRun: (input) => ipcRenderer.invoke('workflow-runs:start', input),
+  refreshWorkflowRun: (id) => ipcRenderer.invoke('workflow-runs:refresh', { id }),
+  removeFailedWorkflowRun: (id, expectedUpdatedAt) => ipcRenderer.invoke('workflow-runs:remove-failed', { id, expectedUpdatedAt }),
+  chooseWorkflowMedia: (workflowId, key) => ipcRenderer.invoke('workflow-runs:choose-media', { workflowId, key }),
   listPublicVoices: () => ipcRenderer.invoke('voices:list'),
   renamePublicVoice: (input) => ipcRenderer.invoke('voices:rename', input),
   importPublicVoices: () => ipcRenderer.invoke('voices:import'),
@@ -121,9 +126,10 @@ const api: DesktopApi = {
   deleteAccount: (id) => ipcRenderer.invoke('accounts:delete', { id }),
   refreshAccounts: (id) => ipcRenderer.invoke('accounts:refresh', { id }),
   listWorkflows: () => ipcRenderer.invoke('workflows:list'),
-  exportWorkflowTemplate: (template = 'standard') => ipcRenderer.invoke('workflows:export-template', { template }),
+  exportWorkflowTemplate: (template = 'accelerated') => ipcRenderer.invoke('workflows:export-template', { template }),
   saveWorkflow: (input) => ipcRenderer.invoke('workflows:save', input),
   deleteWorkflow: (id) => ipcRenderer.invoke('workflows:delete', { id }),
+  saveWorkflowApplication: (input) => ipcRenderer.invoke('workflows:save-application', input),
   inspectWorkflow: (id) => ipcRenderer.invoke('workflows:inspect', { id }),
   listAssets: (input) => ipcRenderer.invoke('assets:list', input),
   listAssetCategories: (projectId) => ipcRenderer.invoke('assets:categories', { projectId }),

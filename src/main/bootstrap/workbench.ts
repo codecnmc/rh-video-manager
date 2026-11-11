@@ -1,3 +1,7 @@
+import { WorkflowRunService, WorkflowRunMonitor } from '../modules/workflows'
+import { SqliteWorkflowRunRepository } from '../infrastructure/database/workflow-run-repository'
+import { RunningHubWorkflowRunner } from '../providers/runninghub/workflow-runner'
+import { WorkflowOutputFiles } from '../infrastructure/files/workflow-output-files'
 import { VoiceService } from '../modules/voices'
 import { app, BrowserWindow, dialog, Notification } from 'electron'
 import { WindowClosePrompts } from './window-close-prompts'
@@ -26,7 +30,6 @@ import { allowedMediaUrl } from '../providers/runninghub/preview-protocol'
 import { registerWorkbench } from '../ipc/register-workbench'
 import { AccountService } from '../modules/accounts'
 import { WorkflowService } from '../modules/workflows'
-import h3ComfyUiTemplate from '../providers/runninghub/h3-comfyui-template.json' with { type: 'json' }
 import h3AcceleratedTemplate from '../providers/runninghub/h3-accelerated-template.json' with { type: 'json' }
 import { ReferenceService, LibraryService } from '../modules/assets'
 import { VideoService } from '../modules/video'
@@ -79,12 +82,13 @@ export async function initializeWorkbench(): Promise<void> {
   const directory = join(app.getPath('userData'), 'database')
   mkdirSync(directory, { recursive: true })
   const database = new WorkbenchDatabase(join(directory, 'workbench.sqlite'))
+  let workflowRuns: WorkflowRunService | undefined
   let imageGeneration: ImageGenerationService | undefined
   const projects = new ProjectService(new SqliteProjectRepository(database.connection))
   const scripts = new ScriptService(new SqliteScriptRepository(database.connection))
   const personalLibrary = new ScriptLibraryService(new SqliteScriptLibraryRepository(database.connection), randomUUID)
   const mediaStorage = new MediaStorageService(new SqliteMediaStorageRepository(database.connection), new LocalMediaStorageFiles(), app.getPath('userData'), () => {
-    if (library.hasPendingImports() || imageGeneration?.hasPending() || imageGeneration?.hasActivity() || generation?.hasStorageActivity() || production.hasStorageActivity() || assemblyExport.hasActivity() ||
+    if (workflowRuns?.hasPending() || workflowRuns?.hasActivity() || library.hasPendingImports() || imageGeneration?.hasPending() || imageGeneration?.hasActivity() || generation?.hasStorageActivity() || production.hasStorageActivity() || assemblyExport.hasActivity() ||
       previews.list().some((task) => !['success', 'failed', 'cancelled'].includes(task.remoteStatus))) {
       throw new Error('仍有导入、视频任务、音频任务、成片下载或导出未结束，请结束后再更改素材位置或重启迁移')
     }
@@ -171,10 +175,11 @@ export async function initializeWorkbench(): Promise<void> {
   })
   const accounts = new AccountService(new SqliteAccountRepository(database.connection), new SafeStorageCredentialVault(), new RunningHubAccountGateway(), randomUUID)
   const workflows = new WorkflowService(new SqliteWorkflowRepository(database.connection), new RunningHubWorkflowGateway(), randomUUID,
-    JSON.stringify(h3ComfyUiTemplate, null, 2), JSON.stringify(h3AcceleratedTemplate, null, 2))
+    '', JSON.stringify(h3AcceleratedTemplate, null, 2))
   const assembly = new AssemblyService(new SqliteAssemblyRepository(database.connection), { get: (id) => library.get(id) }, randomUUID)
   const library: LibraryService = new LibraryService(new SqliteAssetRepository(database.connection),
     new ManagedReferenceFiles(join(mediaDirectory, 'assets')), randomUUID, (id) => {
+      if (workflowRuns?.referencesAsset(id)) throw new Error('素材仍被工作流历史引用，不能删除或替换')
       if (assembly.references(id)) throw new Error('素材仍被排片工程或历史修订引用，不能删除')
       if (imageGeneration?.references(id)) throw new Error('素材仍被生图任务引用，不能删除或替换')
     })
@@ -201,7 +206,7 @@ export async function initializeWorkbench(): Promise<void> {
   generation = new GenerationService(new SqliteGenerationRepository(database.connection, samplingFiles), {
     routes() {
       return accounts.list().accounts.filter((account) => account.enabled).flatMap((account) => {
-        const owned = workflows.list().filter((workflow) => workflow.accountId === account.id && workflow.enabled)
+        const owned = workflows.list().filter((workflow) => workflow.accountId === account.id && workflow.enabled && (workflow.kind ?? 'video') === 'video')
         const defaults = owned.filter((workflow) => workflow.isDefault)
         const selected = defaults.length === 1 ? defaults[0] : defaults.length === 0 && owned.length === 1 ? owned[0] : undefined
         return selected ? [{ configId: selected.id, accountId: account.id, workflowId: selected.workflowId }] : []
@@ -231,7 +236,7 @@ export async function initializeWorkbench(): Promise<void> {
     async capacity(id) {
       const account = (await accounts.refresh(id)).accounts.find((item) => item.id === id)
       if (!account?.enabled || account.queueStatus !== 'ready' || !account.queue) throw new Error('无法确认原账号队列容量，未提交生成')
-      return { limit: account.queue.concurrentLimit, occupied: account.queue.totalCurrentTasks }
+      return { limit: account.queue.concurrentLimit, occupied: account.queue.totalCurrentTasks, externalReservations: workflowRuns?.reservationCount(id) ?? 0 }
     }
   }, new RunningHubGenerationGateway(), previews, emitPreview, {
     async prepareContinuity(input, signal, authorize) {
@@ -256,6 +261,39 @@ export async function initializeWorkbench(): Promise<void> {
       signal.throwIfAborted()
       return library.registerGeneratedVideo({ ...file, projectId: input.projectId, title: input.title,
         prompt: input.prompt, jobId: input.jobId, submittedAt: input.submittedAt }).id
+    }
+  })
+  const workflowRunner = new RunningHubWorkflowRunner()
+  const workflowFiles = new WorkflowOutputFiles(join(mediaDirectory, 'production-staging', 'workflows'), allowedMediaUrl)
+  workflowRuns = new WorkflowRunService(new SqliteWorkflowRunRepository(database.connection), {
+    workflow: (id) => workflows.get(id),
+    async assertCapacity(accountId, currentRunId) {
+      const account = (await accounts.refresh(accountId)).accounts.find((item) => item.id === accountId)
+      if (!account?.enabled || account.queueStatus !== 'ready' || !account.queue) throw new Error('账号不可用或无法确认空闲容量，未提交生成')
+      const local = (generation?.reservationCount(accountId) ?? 0) + (workflowRuns?.reservationCount(accountId, currentRunId) ?? 0)
+      // 平台任务数与本地占位可能描述同一任务，取较大值，不重复相加。
+      const occupied = Math.max(account.queue.totalCurrentTasks, local)
+      if (occupied >= account.queue.concurrentLimit) throw new Error(`账号并发已满：平台任务 ${account.queue.totalCurrentTasks}，本地占位 ${local}，并发上限 ${account.queue.concurrentLimit}；请刷新任务核对终态`)
+    },
+    prepare(workflow, values) {
+      return workflowRunner.prepare(workflow, accounts.credential(workflow.accountId!), values, (id, kind, expectedUpdatedAt) => {
+        const original = library.get(id)
+        const assertCurrent = () => {
+          const current = library.get(id)
+          if (current.archived || current.kind !== kind || current.projectId !== null || current.updatedAt !== original.updatedAt || current.updatedAt !== expectedUpdatedAt) throw new Error('参考素材已变化，请重新选择')
+        }
+        assertCurrent()
+        return { path: library.media(id).path, assertCurrent }
+      })
+    },
+    query: (run) => workflowRunner.query(run.taskId, accounts.credential(run.accountId)),
+    async archive(run, output, index) {
+      const path = await workflowFiles.download(run.id, index, output)
+      try {
+        const asset = (await library.import({ projectId: null, categoryId: null, kind: output.kind, tags: ['工作流产物', run.workflowId, run.id], prompt: '', notes: run.workflowName }, [path]))[0]!
+        const renamed = library.update({ ...asset, name: `${run.workflowName.slice(0, 100)}-${run.id.slice(0, 8)}-${index + 1}.${output.extension}`, expectedUpdatedAt: asset.updatedAt })
+        return { id: renamed.id, name: renamed.name, kind: output.kind }
+      } finally { await workflowFiles.discard(path) }
     }
   })
   const voices = new VoiceService(library)
@@ -297,16 +335,17 @@ export async function initializeWorkbench(): Promise<void> {
   const migration = new MigrationService(new EncryptedMigrationArchive(database.connection, app.getPath('userData'), mediaDirectory), (mode) => {
     const storage = mediaStorage.status()
     if (storage.pendingDirectory || storage.cleanupDirectory) throw new Error('素材位置正在迁移或清理，请完成后再迁移数据')
-    if (library.hasPendingImports() || production.hasStorageActivity() || assemblyExport.hasActivity()) throw new Error('正在导入素材、处理音频或导出成片，请完成文件操作后再迁移数据')
+    if (workflowRuns?.hasPending() || workflowRuns?.hasActivity() || library.hasPendingImports() || production.hasStorageActivity() || assemblyExport.hasActivity()) throw new Error('正在导入素材、处理音频或导出成片，请完成文件操作后再迁移数据')
     if (mode === 'import' && (generation?.hasStorageActivity() || imageGeneration?.hasPending() || imageGeneration?.hasActivity())) {
       throw new Error('仍有未结束任务，请处理后再导入；导出不受历史任务状态限制')
     }
     // 导出允许远端状态未确认的历史记录，但必须冻结会覆盖受管文件的后台工作。
     const resumeVideo = generation?.pauseForSnapshot()
     let resumeImage: (() => void) | undefined
-    try { resumeImage = imageGeneration?.pauseForSnapshot(); mcp.stop() }
-    catch (error) { resumeVideo?.(); throw error }
-    return () => { try { resumeVideo?.() } finally { resumeImage?.() } }
+    let resumeWorkflows: (() => void) | undefined
+    try { resumeImage = imageGeneration?.pauseForSnapshot(); resumeWorkflows = workflowRuns?.pauseForSnapshot(); mcp.stop() }
+    catch (error) { resumeVideo?.(); resumeImage?.(); throw error }
+    return () => { try { resumeVideo?.() } finally { resumeImage?.(); resumeWorkflows?.() } }
   })
   const skills = new BuiltinSkillService(new LocalBuiltinSkillFiles(join(app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources'), 'skills')))
   // 迁移过程中不能经窗口关闭或托盘退出中断数据库与文件的交接。
@@ -315,7 +354,7 @@ export async function initializeWorkbench(): Promise<void> {
   const closePrompts = new WindowClosePrompts()
   const closingWindows = new WeakSet<BrowserWindow>()
   const confirmedWindows = new WeakSet<BrowserWindow>()
-  const hasGenerationActivity = () => imageGeneration?.hasCloseActivity() ||
+  const hasGenerationActivity = () => workflowRuns?.hasPending() || workflowRuns?.hasActivity() || imageGeneration?.hasCloseActivity() ||
     generation?.hasCloseActivity() || production.hasStorageActivity()
   const confirmTaskClose = async (window: BrowserWindow | undefined, exiting: boolean): Promise<boolean> => {
     if (window && closePrompts.isReady(window.id) && !window.isDestroyed() && !window.webContents.isDestroyed() && !window.webContents.isLoading() && !window.webContents.isCrashed()) {
@@ -389,7 +428,9 @@ export async function initializeWorkbench(): Promise<void> {
   registerWorkbench(workspace, previews, allowedMediaUrl, accounts, workflows, references, library, mcp, extensions, production, generation,
     (media) => samplingFiles.forDownload(media), (id) => diagnostics.read(id), { library: personalLibrary, settings, pages: extensionPages, assembly, assemblyExport,
       assemblyRenderer: (ffmpeg, ffprobe) => new FfmpegAssemblyRenderer(ffmpeg, ffprobe, assemblyFontDirectory),
-      voices, mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows, closePrompts })
+      runs: workflowRuns, voices, mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows, closePrompts })
+  const workflowMonitor = new WorkflowRunMonitor(workflowRuns)
+  workflowMonitor.start()
   imageGeneration.restore()
   generation.restore()
   try {
@@ -401,6 +442,8 @@ export async function initializeWorkbench(): Promise<void> {
     mcp.reportStartupFailure()
   }
   app.once('will-quit', () => {
+    workflowMonitor.stop()
+    workflowRuns?.stop()
     imageGeneration?.stop()
     generation?.stop()
     previews.stopAll()

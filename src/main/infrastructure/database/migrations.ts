@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import { migrateAssetFolderScopes } from './asset-folder-migration'
 
-export const workbenchSchemaVersion = 16
+export const workbenchSchemaVersion = 18
 
 export function migrateWorkbench(database: DatabaseSync, version: number): void {
   if (version < 2) migrateVersionTwo(database)
@@ -25,6 +25,20 @@ export function migrateWorkbench(database: DatabaseSync, version: number): void 
       database.exec("ALTER TABLE projects ADD COLUMN video_groups TEXT NOT NULL DEFAULT '[]'; PRAGMA user_version = 16;")
       database.exec('COMMIT')
     } catch (error) { database.exec('ROLLBACK'); throw error }
+  }
+  if (version < 17) {
+    database.exec('BEGIN IMMEDIATE')
+    try {
+      database.exec(`UPDATE workflows SET data=json_set(data, '$.kind', 'video') WHERE json_extract(data, '$.kind') IS NULL;
+        DROP INDEX IF EXISTS workflows_one_account_default;
+        CREATE UNIQUE INDEX workflows_one_account_kind_default ON workflows(account_id, json_extract(data, '$.kind')) WHERE is_default=1 AND account_id IS NOT NULL;
+        PRAGMA user_version=17; COMMIT;`)
+    } catch (error) { database.exec('ROLLBACK'); throw error }
+  }
+  if (version < 18) {
+    database.exec('BEGIN IMMEDIATE')
+    try { database.exec('CREATE TABLE workflow_runs (id TEXT PRIMARY KEY, data TEXT NOT NULL); PRAGMA user_version=18; COMMIT;') }
+    catch (error) { database.exec('ROLLBACK'); throw error }
   }
 }
 

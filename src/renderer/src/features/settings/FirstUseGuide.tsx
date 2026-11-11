@@ -12,7 +12,7 @@ const steps: { view: GuideView; target: string; title: string; icon: typeof faVi
   { view: 'video', target: 'new-project', title: '新建项目', icon: faFolderOpen, text: '点击当前项目旁的“更多”按钮，选择“新建项目”，再在视频生成页新建视频草稿。引导不会替你创建示例数据；没有项目时也可以先了解后续入口。' },
   { view: 'assets', target: 'assets', title: '素材库', icon: faImages, text: '已切到素材库。导入本地图片、视频和音频只会保存到本地，不会立即上传。双击素材可预览，右键素材或文件夹可复制、编辑和移动。' },
   { view: 'accounts', target: 'accounts', title: '账号池', icon: faUsers, text: '已切到账号池。在这里添加 RunningHub 账号，API Key 加密保存在本机。消费明细入口可查看成功任务消耗积分，平台未返回的费用显示为未知。' },
-  { view: 'workflows', target: 'workflows', title: '工作流总览', icon: faDiagramProject, text: '已切到工作流总览。工作流必须归属具体账号；提交生成前需要配置并明确选择账号和工作流，引导不会自动配置或发起生成。' },
+  { view: 'workflows', target: 'workflows', title: '工作流', icon: faDiagramProject, text: '已切到工作流。工作流必须归属具体账号；提交生成前需要配置并明确选择账号和工作流，引导不会自动配置或发起生成。' },
   { view: 'video', target: 'video', title: '视频生成', icon: faVideo, text: '已切到视频生成。右键草稿可复制、多选或排序；右键参考素材名称可替换、插入引用和解除关联。保存草稿不产生生成费用，确认提交后才上传素材并消耗平台额度。' },
   { view: 'image-generation', target: 'image-generation', title: '素材生成', icon: faImage, text: '已切到素材生成。进入任务组后可使用画布：右键插入素材或新建任务，拖动连线绑定参考，底部工具栏可查看操作说明。引导不会创建任务或提交付费请求。' },
   { view: 'tasks', target: 'tasks', title: '任务队列', icon: faListCheck, text: '已切到任务队列。提交后在这里查看任务进度和结果；也可以点击窗口底部的任务队列入口。生成状态与下载状态独立，请勿因等待结果而重复提交。' },

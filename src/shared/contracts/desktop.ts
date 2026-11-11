@@ -1,10 +1,11 @@
+import type { StartWorkflowRun, WorkflowRun } from './workflow-runs'
 import type { CreateVoice, PublicVoice } from './voices'
 import type { PreviewEvent, PreviewKind, PreviewSnapshot, PreviewNotificationTarget } from './preview'
 import type { ScheduleGeneration, SubmitGeneration } from './generation'
 import type { ConsumptionFilter, ConsumptionLedger } from './consumption'
 import type { CopyVideoDraft, DeleteWorkspaceEntity, SaveWorkspace, Workspace } from './workspace'
 import type { AccountPool, SaveAccount } from './accounts'
-import type { SaveWorkflow, Workflow } from './workflows'
+import type { SaveWorkflow, SaveWorkflowApplication, Workflow } from './workflows'
 import type { ReferenceKind, DraftReference, PastedImage, ReplaceDraftReference } from './references'
 import type { Asset, AssetCategory, AssetFilter, ImportAssets, AutoImportAssets, SavePromptAsset, SaveCategory, UpdateAsset, PasteAssets, MoveAssets } from './assets'
 import type { AssetMcpStatus, AssetMcpPreferences, StartAssetMcp } from './mcp'
@@ -20,6 +21,11 @@ import type { ImageAccount, SaveImageAccount, ImageBoard, CreateImageBoard, Imag
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface DesktopApi {
+  listWorkflowRuns(workflowId?: string): Promise<Result<WorkflowRun[]>>
+  startWorkflowRun(input: StartWorkflowRun): Promise<Result<WorkflowRun>>
+  refreshWorkflowRun(id: string): Promise<Result<WorkflowRun>>
+  removeFailedWorkflowRun(id: string, expectedUpdatedAt: string): Promise<Result<void>>
+  chooseWorkflowMedia(workflowId: string, key: string): Promise<Result<Asset | null>>
   listPublicVoices(): Promise<Result<PublicVoice[]>>
   renamePublicVoice(input: import('./voices').RenameVoice): Promise<Result<PublicVoice>>
   importPublicVoices(): Promise<Result<PublicVoice[]>>
@@ -116,6 +122,7 @@ export interface DesktopApi {
   exportWorkflowTemplate(template?: import('./workflows').WorkflowTemplate): Promise<Result<boolean>>
   saveWorkflow(input: SaveWorkflow): Promise<Result<Workflow[]>>
   deleteWorkflow(id: string): Promise<Result<Workflow[]>>
+  saveWorkflowApplication(input: SaveWorkflowApplication): Promise<Result<Workflow[]>>
   inspectWorkflow(id: string): Promise<Result<Workflow[]>>
   listAssets(input: AssetFilter): Promise<Result<Asset[]>>
   listAssetCategories(projectId?: string | null): Promise<Result<AssetCategory[]>>

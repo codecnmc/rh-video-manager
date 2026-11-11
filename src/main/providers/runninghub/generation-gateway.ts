@@ -21,7 +21,7 @@ const formats: Record<ReferenceKind, readonly string[]> = {
   image: ['.jpg', '.jpeg', '.png', '.webp'], video: ['.mp4', '.avi', '.mov', '.mkv'], audio: ['.mp3', '.wav', '.flac']
 }
 
-async function request(path: string, credential: string, body: NonNullable<RequestInit['body']>, json: boolean, timeout = 20000): Promise<unknown> {
+export async function request(path: string, credential: string, body: NonNullable<RequestInit['body']>, json: boolean, timeout = 20000): Promise<unknown> {
   const response = await fetch(`https://www.runninghub.cn${path}`, { method: 'POST', redirect: 'error',
     headers: { Authorization: `Bearer ${credential}`, ...(json ? { 'Content-Type': 'application/json' } : {}) },
     body, signal: AbortSignal.timeout(timeout) })

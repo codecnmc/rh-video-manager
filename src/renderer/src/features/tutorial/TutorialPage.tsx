@@ -9,7 +9,7 @@ const captions = [
   'RunningHub 头像菜单：查看账号标识并进入控制台',
   '工作台账号池：添加账号，填写账号标识和 API Key 后保存并同步',
   'RunningHub 控制台：消费级－会员中的 API 密钥',
-  '工作流总览：下载软件内置的加速版工作流',
+  '工作流：下载软件内置的加速版工作流',
   'RunningHub 工作台：导入下载的工作流',
   '视频草稿：参考素材、H3 全能参考提示词与生成结果',
   '视频生成示例：核对参考素材、生成参数和实际成片',
@@ -31,7 +31,7 @@ export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) =
   return <section className="management-page tutorial-page"><div className="tutorial-content">
     <h1>使用教程</h1><p className="muted">第一次使用，从准备工具开始。先配置账号池，再配置工作流，最后进入视频生产。</p>
     <nav className="tutorial-toc" aria-label="教程目录">
-      <a href="#tutorial-ready">使用前提</a><a href="#tutorial-accounts">01 账号池</a><a href="#tutorial-workflows">02 工作流总览</a>
+      <a href="#tutorial-ready">使用前提</a><a href="#tutorial-accounts">01 账号池</a><a href="#tutorial-workflows">02 工作流</a>
       <a href="#tutorial-video">03 视频生成</a><a href="#tutorial-agent">推荐创作流程</a><a href="#tutorial-edit">排片与剪映</a>
     </nav>
     <section id="tutorial-ready" className="tutorial-section"><h2>使用前提 · 准备好这些工具</h2>
@@ -49,14 +49,14 @@ export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) =
       <p className="tutorial-note">API Key 只在录入时填写，加密保存在本机。账号池的可用并发以平台实际容量为准，网站运行任务也会占用同一账号的额度。</p>
       <div className="button-row"><Button onClick={() => onNavigate('accounts')}>前往账号池</Button></div>{figures([2, 3, 4])}
     </section>
-    <section id="tutorial-workflows" className="tutorial-section"><h2>02 · 工作流总览（第二步）</h2>
-      <ol><li>进入“工作流总览”，点击“下载加速版”。加速版适合优先尝试；实际耗时与积分消耗以平台任务结果为准。</li>
+    <section id="tutorial-workflows" className="tutorial-section"><h2>02 · 工作流（第二步）</h2>
+      <ol><li>进入“工作流”，点击“下载加速版”。加速版适合优先尝试；实际耗时与积分消耗以平台任务结果为准。</li>
         <li>打开 <a href="https://www.runninghub.cn/workspace" target="_blank" rel="noreferrer">RunningHub 工作台</a>，点击“导入工作流”，导入刚下载的文件。</li>
         <li>打开导入后的工作流详情，从浏览器地址中复制 workflowId。地址格式为 <code>https://www.runninghub.cn/workflow/这里是workflowId?source=workspace</code>，只复制中间的 ID。</li>
         <li>回到软件点击“添加工作流”，选择所属账号，填写自定义名称和 RunningHub 工作流 ID，启用并保存，再设为该账号的默认工作流。</li>
         <li>检测线上工作流并核对识别结果。加速版包含采样与成片输出，没有独立低清预览；不同版本的可用预览能力可能不同。</li></ol>
       <p>如果工作流分享权限允许其他账号调用，可复用同一个线上工作流，无需重复上传；仍需在软件中为每个使用它的账号配置工作流归属，并确认该账号实际有权访问。</p>
-      <div className="button-row"><Button onClick={() => onNavigate('workflows')}>前往工作流总览</Button></div>{figures([5, 6])}
+      <div className="button-row"><Button onClick={() => onNavigate('workflows')}>前往工作流</Button></div>{figures([5, 6])}
     </section>
     <section id="tutorial-video" className="tutorial-section"><h2>03 · 视频生成（配置完成后开始生产）</h2>
       <ol><li>先准备人物、场景和分镜图等参考素材，再创建项目与视频草稿。</li><li>使用内置 H3 视频提示词 Skill，让支持 Skill 的智能体输出 H3 六段式全能参考提示词，并核对其中图片、视频和音频引用与草稿中真实素材一致。</li>

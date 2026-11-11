@@ -1,2 +1,6 @@
 export { WorkflowService } from './application/workflow-service'
+export { WorkflowInspectionError } from './ports/workflows'
 export type { WorkflowRepository, WorkflowGateway } from './ports/workflows'
+export { WorkflowRunService } from './application/workflow-run-service'
+export { WorkflowRunMonitor } from './application/workflow-run-monitor'
+export type { WorkflowRunRepository } from './ports/workflow-runs'
