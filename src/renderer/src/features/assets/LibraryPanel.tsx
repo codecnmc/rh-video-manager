@@ -1,3 +1,4 @@
+import { desktop, unwrap } from '@/shared/lib/desktop'
 import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlus, faFileImport, faPen, faTrash, faBoxArchive, faRotateLeft, faFolderOpen, faCopy, faRotateRight, faArrowLeft, faArrowRight, faArrowUp, faFolderPlus, faFolder, faScissors, faPaste } from '@fortawesome/free-solid-svg-icons'
@@ -211,6 +212,9 @@ export function LibraryPanel({ projectId, projects, onNotice, onDirty }: {
         <ContextMenuSeparator />
         <ContextMenuItem disabled={busy || context.items.length > 200} onSelect={() => { setCut(context.items.map((item) => ({ id: item.id, expectedUpdatedAt: item.updatedAt }))); onNotice(`已剪切 ${context.items.length} 个素材`) }}><FontAwesomeIcon icon={faScissors} />剪切</ContextMenuItem>
         <ContextMenuItem disabled={busy || context.items.length > 200} onSelect={() => { setMoveTarget(selectedCategory?.id ?? ''); setMoving(true) }}><FontAwesomeIcon icon={faFolder} />移动到文件夹</ContextMenuItem>
+        <ContextMenuItem disabled={busy || context.items.length !== 1 || context.items[0]?.kind !== 'audio' || context.items[0]?.archived} onSelect={() => { const item = context.items[0]; if (item) void act(async () => {
+          unwrap(await desktop().createPublicVoice({ assetId: item.id, expectedUpdatedAt: item.updatedAt, name: item.name })); onNotice('已创建独立公共音色副本，所有项目可用')
+        }) }}>设为公共参考音色</ContextMenuItem>
         <ContextMenuItem disabled={busy || context.items.length !== 1 || context.items[0]?.kind === 'prompt'} onSelect={() => { const item = context.items[0]; if (item) void act(() => library.reveal(item.id)) }}><FontAwesomeIcon icon={faFolderOpen} />在资源管理器中显示</ContextMenuItem>
         <ContextMenuItem disabled={busy || context.items.length !== 1 || context.items[0]?.kind !== 'image' || context.items[0]?.archived} onSelect={() => { const item = context.items[0]; if (item) void act(async () => { await library.copyImage(item.id); onNotice('图片已复制') }) }}><FontAwesomeIcon icon={faCopy} />复制图片</ContextMenuItem>
         <ContextMenuItem disabled={busy || context.items.length !== 1} onSelect={() => { const item = context.items[0]; if (item) void act(async () => { await library.copyId(item.id); onNotice('素材库 ID 已复制') }) }}><FontAwesomeIcon icon={faCopy} />复制素材库 ID</ContextMenuItem>

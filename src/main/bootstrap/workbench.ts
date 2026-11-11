@@ -1,3 +1,4 @@
+import { VoiceService } from '../modules/voices'
 import { app, BrowserWindow, dialog, Notification } from 'electron'
 import { WindowClosePrompts } from './window-close-prompts'
 import { join } from 'node:path'
@@ -257,8 +258,9 @@ export async function initializeWorkbench(): Promise<void> {
         prompt: input.prompt, jobId: input.jobId, submittedAt: input.submittedAt }).id
     }
   })
+  const voices = new VoiceService(library)
   const mcp = new AssetMcpServer(library, undefined, async () => (await workspace.load()).projects.map(({ id, name }) => ({ id, name })),
-    new WorkspaceDraftService(workspace, references), new SqliteMcpTokenStore(database.connection), personalLibrary, assembly, new FfmpegMediaInspector(mediaEngine), generation, imageGeneration)
+    new WorkspaceDraftService(workspace, references), new SqliteMcpTokenStore(database.connection), personalLibrary, assembly, new FfmpegMediaInspector(mediaEngine), generation, imageGeneration, voices)
   const extensionDirectory = join(app.getPath('userData'), 'extensions')
   const extensions = new ExtensionService(new SqliteExtensionRepository(database.connection), new ManagedExtensionPackages(extensionDirectory),
     new UtilityExtensionHost(extensionHostEntry(app.isPackaged, process.resourcesPath, __dirname), extensionDirectory), new SafeStorageExtensionVault())
@@ -387,7 +389,7 @@ export async function initializeWorkbench(): Promise<void> {
   registerWorkbench(workspace, previews, allowedMediaUrl, accounts, workflows, references, library, mcp, extensions, production, generation,
     (media) => samplingFiles.forDownload(media), (id) => diagnostics.read(id), { library: personalLibrary, settings, pages: extensionPages, assembly, assemblyExport,
       assemblyRenderer: (ffmpeg, ffprobe) => new FfmpegAssemblyRenderer(ffmpeg, ffprobe, assemblyFontDirectory),
-      mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows, closePrompts })
+      voices, mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows, closePrompts })
   imageGeneration.restore()
   generation.restore()
   try {

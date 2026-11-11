@@ -6,6 +6,10 @@ import { assemblyExportProgressSchema } from '../shared/contracts/assembly-expor
 import { windowClosePromptSchema } from '../shared/contracts/window-close'
 
 const api: DesktopApi = {
+  listPublicVoices: () => ipcRenderer.invoke('voices:list'),
+  renamePublicVoice: (input) => ipcRenderer.invoke('voices:rename', input),
+  importPublicVoices: () => ipcRenderer.invoke('voices:import'),
+  createPublicVoice: (input) => ipcRenderer.invoke('voices:from-asset', input),
   currentWindowClosePrompt: () => ipcRenderer.invoke('window:close-prompt-current'),
   respondWindowClosePrompt: (input) => ipcRenderer.invoke('window:close-prompt-respond', input),
   onWindowClosePrompt: (listener) => {

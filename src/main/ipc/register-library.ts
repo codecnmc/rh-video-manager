@@ -105,7 +105,7 @@ export function registerLibrary(handle: DesktopHandle, library: LibraryService, 
       // 自定义令牌只交给加密凭据存储，不进入偏好设置或前端查询缓存。
       configuredSettings().saveMcpPreferences({ projectId: parsed.projectId, allProjects: parsed.allProjects,
         writeEnabled: parsed.writeEnabled, minutes: parsed.minutes, importDirectory: parsed.writeEnabled ? state.importDirectory : directory,
-        scriptLibraryEnabled: parsed.scriptLibraryEnabled, assemblyEnabled: parsed.assemblyEnabled, imageGenerationEnabled: parsed.imageGenerationEnabled, imageSubmissionEnabled: parsed.imageSubmissionEnabled })
+        publicVoicesEnabled: parsed.publicVoicesEnabled, scriptLibraryEnabled: parsed.scriptLibraryEnabled, assemblyEnabled: parsed.assemblyEnabled, imageGenerationEnabled: parsed.imageGenerationEnabled, imageSubmissionEnabled: parsed.imageSubmissionEnabled })
     }
     catch (error) { mcp.stop(); throw error }
     return state

@@ -1,3 +1,4 @@
+import type { CreateVoice, PublicVoice } from './voices'
 import type { PreviewEvent, PreviewKind, PreviewSnapshot, PreviewNotificationTarget } from './preview'
 import type { ScheduleGeneration, SubmitGeneration } from './generation'
 import type { ConsumptionFilter, ConsumptionLedger } from './consumption'
@@ -19,6 +20,10 @@ import type { ImageAccount, SaveImageAccount, ImageBoard, CreateImageBoard, Imag
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface DesktopApi {
+  listPublicVoices(): Promise<Result<PublicVoice[]>>
+  renamePublicVoice(input: import('./voices').RenameVoice): Promise<Result<PublicVoice>>
+  importPublicVoices(): Promise<Result<PublicVoice[]>>
+  createPublicVoice(input: CreateVoice): Promise<Result<PublicVoice>>
   currentWindowClosePrompt(): Promise<Result<import('./window-close').WindowClosePrompt | null>>
   respondWindowClosePrompt(input: import('./window-close').WindowCloseDecision): Promise<Result<void>>
   onWindowClosePrompt(listener: (prompt: import('./window-close').WindowClosePrompt | null) => void): () => void

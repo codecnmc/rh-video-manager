@@ -43,11 +43,12 @@ interface PromptEditorProps {
   onReplace?: (reference: DraftReference) => void
   onReveal: (id: string) => void
   onCheckStructure: () => void
+  onOpenVoices: () => void
   onOpenLibrary: () => void
   referenceStatus: 'loading' | 'ready' | 'error'
 }
 
-export function PromptEditor({ text, document, duration, disabled, references, busy, onChange, onImport, onPasteImages, onDropFiles, onRemove, onReplace, onReveal, onCheckStructure, onOpenLibrary, referenceStatus }: PromptEditorProps) {
+export function PromptEditor({ text, document, duration, disabled, references, busy, onChange, onImport, onPasteImages, onDropFiles, onRemove, onReplace, onReveal, onCheckStructure, onOpenLibrary, onOpenVoices, referenceStatus }: PromptEditorProps) {
   const [expanded, setExpanded] = useState(false)
   const [tool, setTool] = useState<'time' | 'dialogue' | null>(null)
   const [time, setTime] = useState('')
@@ -115,7 +116,7 @@ export function PromptEditor({ text, document, duration, disabled, references, b
     {expanded && <Button variant="ghost" size="icon" className="prompt-composer-close" title="退出提示词全屏" aria-label="退出提示词全屏" onClick={() => setExpanded(false)}><FontAwesomeIcon icon={faXmark} /></Button>}
     <div className="prompt-editor-surface">
     <section className="prompt-references" aria-label="参考素材">
-      <div className="prompt-reference-heading"><h3>参考素材</h3><div className="reference-add">
+      <div className="prompt-reference-heading"><h3>参考素材</h3><div className="reference-add"><Button variant="ghost" size="small" disabled={disabled || busy || counts('audio') >= 3} onClick={onOpenVoices}>音色库</Button>
         <Button variant="ghost" size="small" disabled={disabled || busy} onClick={onOpenLibrary}><FontAwesomeIcon icon={faImages} />素材库</Button>
         <FontAwesomeIcon icon={faPaperclip} /><SelectField aria-label="添加参考素材" value="" disabled={disabled || busy} onChange={(event) => onImport(event.target.value as ReferenceKind)}>
           <SelectOption value="">添加素材</SelectOption><SelectOption value="image" disabled={counts('image') >= 9}>图片</SelectOption><SelectOption value="video" disabled={counts('video') >= 3}>视频</SelectOption><SelectOption value="audio" disabled={counts('audio') >= 3}>音频</SelectOption>

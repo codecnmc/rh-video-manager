@@ -39,6 +39,7 @@ export function AssetMcpPanel({ projectId, projects, onNotice }: {
     {current?.enabled ? <div className="mcp-status"><dl>
       <dt>授权范围</dt><dd>{current.allProjects ? '全部项目及公共素材' : projects.find((item) => item.id === current.projectId)?.name ?? '项目不可用'}</dd>
       <dt>本机地址</dt><dd>{current.url}</dd><dt>权限</dt><dd>{current.writeEnabled ? '素材、视频草稿读写与分类管理' : '只读素材和视频草稿'}</dd>
+      <dt>公共音色</dt><dd>{current.publicVoicesEnabled ? '只读' : '未授权'}</dd>
       <dt>剧本库</dt><dd>{current.scriptLibraryEnabled ? current.writeEnabled ? '授权项目内读写（不含删除）' : '授权项目内只读' : '未授权'}</dd>
       <dt>排片剪辑库</dt><dd>{current.assemblyEnabled ? current.writeEnabled ? '授权项目内读写（不含工程删除、生成或导出）' : '授权项目内只读' : '未授权'}</dd>
       <dt>素材生成</dt><dd>{current.imageGenerationEnabled ? current.writeEnabled ? '查询、诊断、创建待提交节点及恢复已有图片下载（不含生图提交）' : '只读任务、结果及脱敏网络诊断' : '未授权'}</dd>
@@ -55,7 +56,7 @@ export function AssetMcpPanel({ projectId, projects, onNotice }: {
           const projectName = projects.find((item) => item.id === project)?.name ?? '所选项目'
           if (!(await confirmAction(mcpAuthorizationSummary(draft, projectName, duration)))) return
           unwrap(await desktop().startAssetMcp({ projectId: draft.allProjects ? null : project, allProjects: draft.allProjects,
-            writeEnabled: draft.writeEnabled, minutes: duration, scriptLibraryEnabled: draft.scriptLibraryEnabled, assemblyEnabled: draft.assemblyEnabled, imageGenerationEnabled: draft.imageGenerationEnabled, imageSubmissionEnabled: draft.imageSubmissionEnabled,
+            publicVoicesEnabled: draft.publicVoicesEnabled, writeEnabled: draft.writeEnabled, minutes: duration, scriptLibraryEnabled: draft.scriptLibraryEnabled, assemblyEnabled: draft.assemblyEnabled, imageGenerationEnabled: draft.imageGenerationEnabled, imageSubmissionEnabled: draft.imageSubmissionEnabled,
             ...(token ? { token } : {}) }))
           setToken('')
         })
@@ -72,6 +73,7 @@ export function AssetMcpPanel({ projectId, projects, onNotice }: {
           setForm(previous => previous ? { ...previous, importDirectory: saved.importDirectory } : null)
         })}><FontAwesomeIcon icon={faFolderOpen} />{draft?.importDirectory ? '更换目录' : '选择目录'}</Button></div></div>
         <label className="checkbox-label"><CheckboxField checked={draft?.writeEnabled ?? false} onChange={(event) => { if (draft) setForm({ ...draft, writeEnabled: event.target.checked, imageSubmissionEnabled: event.target.checked && draft.imageSubmissionEnabled }) }} />允许素材和视频草稿读写、引用绑定与分类管理</label>
+        <label className="checkbox-label"><CheckboxField checked={draft?.publicVoicesEnabled ?? false} onChange={(event) => { if (draft) setForm({ ...draft, publicVoicesEnabled: event.target.checked }) }} />公共音色库（独立只读授权，所有项目共享）</label>
         <label className="checkbox-label"><CheckboxField checked={draft?.scriptLibraryEnabled ?? false} onChange={(event) => { if (draft) setForm({ ...draft, scriptLibraryEnabled: event.target.checked }) }} />授权范围内的剧本库（随当前读写权限，不含删除）</label>
         <label className="checkbox-label"><CheckboxField checked={draft?.assemblyEnabled ?? false} onChange={(event) => { if (draft) setForm({ ...draft, assemblyEnabled: event.target.checked }) }} />授权范围内的排片剪辑库（随当前读写权限，不含工程删除、生成或导出）</label>
         <label className="checkbox-label"><CheckboxField checked={draft?.imageGenerationEnabled ?? false} onChange={(event) => { if (draft) setForm({ ...draft, imageGenerationEnabled: event.target.checked, imageSubmissionEnabled: event.target.checked && draft.imageSubmissionEnabled }) }} />素材生成（查询与诊断；写权限可创建节点、恢复已有图片下载）</label>

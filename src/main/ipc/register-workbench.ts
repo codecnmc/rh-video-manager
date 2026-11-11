@@ -1,3 +1,5 @@
+import { registerVoices } from './register-voices'
+import type { VoiceService } from '../modules/voices'
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -49,7 +51,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   prepareDownload: (media: PreviewMedia) => PreviewMedia = (media) => media,
   readTaskDiagnostics: (id: string) => string = () => { throw new Error('任务日志尚未配置') },
   personalLibrary?: { library: ScriptLibraryService; settings: SettingsService; pages: ExtensionPageService; assembly?: AssemblyService; assemblyExport?: AssemblyExportService; assemblyRenderer?: (ffmpeg: string, ffprobe: string) => AssemblyRenderer;
-    mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost; closePrompts?: WindowClosePromptHost }): void {
+    voices?: VoiceService; mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost; closePrompts?: WindowClosePromptHost }): void {
   const handle = <T>(channel: string, action: (input: unknown, window: BrowserWindow) => Promise<T>) => {
     ipcMain.handle(channel, async (event, input: unknown): Promise<Result<T>> => {
       const window = BrowserWindow.fromWebContents(event.sender)
@@ -67,6 +69,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
       }
     })
   }
+  if (personalLibrary?.voices) registerVoices(handle, personalLibrary.voices)
   handle('workspace:load', () => workspace.load())
   if (personalLibrary?.closePrompts) registerWindowClose(handle, personalLibrary.closePrompts)
   handle('generation:schedule', (input) => generation.schedule(scheduleGenerationSchema.parse(input)))

@@ -1,3 +1,4 @@
+import { VoicePicker } from '@/features/voices'
 import { confirmAction, showMessage } from '@/components/ui/confirmation'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useForm, type FieldErrors } from 'react-hook-form'
@@ -52,6 +53,7 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
     void showMessage(message)
   }
   const [parametersOpen, setParametersOpen] = useState(false)
+  const [voicePicker, setVoicePicker] = useState(false)
   const [picker, setPicker] = useState(false)
   const [replacement, setReplacement] = useState<DraftReference | null>(null)
   const [tab, setTab] = useState<'video' | 'dialogue'>(initialTab)
@@ -146,7 +148,7 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
         <div className="video-title-row"><label htmlFor="video-title">视频名称</label><Input id="video-title" {...form.register('title')} /></div>
         {form.formState.errors.title && <p className="field-error">{form.formState.errors.title.message}</p>}
         <PromptEditor text={form.watch('prompt')} document={form.watch('promptDocument')} duration={form.watch('duration')} disabled={saving || generation.pending} references={references.data ?? []} busy={importing || generation.pending} onCheckStructure={checkStructure} onOpenLibrary={() => setPicker(true)}
-          referenceStatus={references.error ? 'error' : referencesKnown ? 'ready' : 'loading'}
+          onOpenVoices={() => setVoicePicker(true)} referenceStatus={references.error ? 'error' : referencesKnown ? 'ready' : 'loading'}
           onChange={(text, document) => {
             form.setValue('prompt', text, { shouldDirty: true, shouldValidate: true })
             form.setValue('promptDocument', document, { shouldDirty: true, shouldValidate: true })
@@ -234,6 +236,12 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
     {hasSpeechProvider && <div className="inspector-form" style={tab === 'dialogue' ? undefined : { display: 'none' }}>
       <DialogueProduction key={draft.id} projectId={projectId} draftId={draft.id} saved={saved} sourcePrompt={draft.prompt} sourceDirty={isDirty} onDirty={setDialogueDirty} />
     </div>}
+    {voicePicker && <VoicePicker onClose={() => setVoicePicker(false)} onPick={async (assetId) => {
+      if (externalChanges || saving || generation.pending || importingRef.current) throw new Error('请先保存或结束当前操作')
+      if (!saved || isDirty) await onSave(normalizedDraft(videoDraftSchema.parse(form.getValues())))
+      await references.attach(assetId)
+      onNotice('已绑定公共音色，请在对白中使用对应 Audio 引用标签')
+    }} />}
     {picker && <AssetPicker projectId={projectId} {...(replacement ? { requiredKind: replacement.kind, replacing: true } : { onPickMany: pickAssets })}
       onClose={() => { setPicker(false); setReplacement(null) }} onPick={(asset) => pickAssets([asset])} />}
   </aside></Popover>
