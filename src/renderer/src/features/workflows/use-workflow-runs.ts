@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { StartWorkflowRun } from '@contracts/workflow-runs'
+import type { StartWorkflowRun, WorkflowRun } from '@contracts/workflow-runs'
+import { restoreWorkflowInput } from './restore-workflow-input'
 import type { Workflow } from '@contracts/workflows'
 import { confirmAction } from '@/components/ui/confirmation'
 import { desktop, unwrap } from '@/shared/lib/desktop'
@@ -13,6 +14,13 @@ export function useWorkflowRuns(workflowId?: string) {
   useEffect(() => { if (outputIds) void client.invalidateQueries({ queryKey: ['assets'] }) }, [client, outputIds])
   const invalidate = async () => { await client.invalidateQueries({ queryKey: ['workflow-runs'] }); await client.invalidateQueries({ queryKey: ['assets'] }) }
   return { ...query,
+    async restoreInput(workflow: Workflow, run: WorkflowRun) {
+      const hasMedia = Object.values(run.input?.values ?? {}).some((value) => typeof value === 'object')
+      const assets = hasMedia ? unwrap(await desktop().listAssets({ projectId: null })) : []
+      const restored = restoreWorkflowInput(workflow, run, assets)
+      if (restored) requestId.current = null
+      return restored
+    },
     async start(workflow: Workflow, values: StartWorkflowRun['values'], instance: StartWorkflowRun['instance']) {
       if (!workflow.checkedAt) throw new Error('请先成功检测工作流')
       if (!await confirmAction(`使用工作流「${workflow.name}」及其所属账号运行？\n账号 ID：${workflow.accountId}\n参考文件将上传至 RunningHub，本次会消耗该账号额度，以平台结算为准。产物保存到公共素材库，所有项目可用。受理不明不会自动重试或换账号。`)) return false

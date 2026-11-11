@@ -14,7 +14,7 @@ export class WorkflowRunService {
     for (const run of repository.list()) if (run.status === 'downloading') repository.save({ ...run, status: 'download-error', message: '上次保存已中断，将继续获取原任务结果' })
   }
   list(workflowId?: string) { return this.repository.list().filter((run) => !run.hiddenAt && (!workflowId || run.workflowId === workflowId)) }
-  referencesAsset(id: string): boolean { return this.repository.list().some((run) => run.assets.some((asset) => asset.id === id)) }
+  referencesAsset(id: string): boolean { return this.repository.list().some((run) => run.assets.some((asset) => asset.id === id) || Object.values(run.input?.values ?? {}).some((value) => typeof value === 'object' && value.assetId === id)) }
   removeFailed(id: string, expectedUpdatedAt: string): void {
     if (this.stopped || this.paused) throw new Error('应用正在退出或迁移数据')
     const run = this.list().find((item) => item.id === id)
@@ -48,11 +48,13 @@ export class WorkflowRunService {
     if (workflow.error || workflow.application?.needsReview) throw new Error('请先完成工作流检测及应用字段复核')
     if ((workflow.application?.updatedAt || null) !== (input.expectedApplicationUpdatedAt ?? null)) throw new Error('应用配置已变化，请重新打开后填写')
     const values = { ...input.values }
+    if (Object.keys(values).some((key) => !workflow.form!.fields.some((field) => field.key === key))) throw new Error('输入包含未知字段，请重新打开应用')
+    for (const field of workflow.form.fields) values[field.key] ??= workflow.application?.fields.find((item) => item.key === field.key)?.defaultValue ?? field.defaultValue
     // 固定参数由主进程配置覆盖，不能通过界面请求悄悄修改。
     for (const field of workflow.application?.fields ?? []) if (field.visibility === 'fixed') values[field.key] = field.defaultValue
     const now = new Date().toISOString()
     const run: WorkflowRun = { id: input.requestId, workflowId: workflow.id, workflowName: workflow.name, accountId: workflow.accountId, kind: workflow.kind,
-      taskId: '', status: 'preparing', createdAt: now, updatedAt: now, message: '正在检查输入及账号容量', assets: [] }
+      taskId: '', status: 'preparing', createdAt: now, updatedAt: now, message: '正在检查输入及账号容量', assets: [], input: { values: structuredClone(values), instance: input.instance, fields: structuredClone(workflow.form.fields) } }
     this.repository.save(run)
     this.active.add(run.id)
     try {

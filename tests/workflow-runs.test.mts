@@ -24,6 +24,10 @@ function setup(context: Partial<WorkflowRunContext> = {}) {
 test('同一请求只创建一次任务', async () => {
   const { service, creates } = setup()
   assert.equal((await service.start(input)).status, 'running')
+  const snapshot = service.list()[0]!.input!
+  assert.equal(snapshot.values['input-test'], '测试')
+  assert.equal(snapshot.instance, 'default')
+  assert.deepEqual(snapshot.fields, form.fields)
   await service.start(input)
   assert.equal(creates(), 1)
 })

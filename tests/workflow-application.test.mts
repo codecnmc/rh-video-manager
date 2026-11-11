@@ -57,7 +57,7 @@ test('固定参数在主进程覆盖请求值，过期应用配置阻断提交',
     values: { [form.fields[1]!.key]: 999 } }
   await assert.rejects(runs.start(input), /配置已变化/)
   await runs.start({ ...input, expectedApplicationUpdatedAt: workflows.get(id).application!.updatedAt })
-  assert.deepEqual(prepared, { [form.fields[1]!.key]: 456 })
+  assert.deepEqual(prepared, { [form.fields[0]!.key]: form.fields[0]!.defaultValue, [form.fields[1]!.key]: 456 })
 })
 
 test('节点新增及输入排序不会改变原字段标识', () => {

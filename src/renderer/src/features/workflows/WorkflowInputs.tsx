@@ -9,18 +9,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { CheckboxField } from '@/components/ui/checkbox-field'
 import { VoicePicker } from '@/features/voices'
 import './workflow-inputs.css'
+import type { RestoredWorkflowInput } from './restore-workflow-input'
 
-export function WorkflowInputs({ workflow, onRun, onChooseMedia, onChooseVoice, onDirty }: { workflow: Workflow;
+export function WorkflowInputs({ workflow, initial, blocked = false, onBusy, onRun, onChooseMedia, onChooseVoice, onDirty }: { workflow: Workflow; initial?: RestoredWorkflowInput; blocked?: boolean; onBusy?: (busy: boolean) => void;
   onRun?: (values: StartWorkflowRun['values'], instance: StartWorkflowRun['instance']) => Promise<boolean | void>;
   onChooseMedia?: (key: string) => Promise<Asset | null>; onChooseVoice?: (id: string) => Promise<Asset>;
   onDirty?: (value: boolean) => void }) {
-  const [values, setValues] = useState<StartWorkflowRun['values']>({})
-  const [names, setNames] = useState<Record<string, string>>({})
+  const [values, setValues] = useState<StartWorkflowRun['values']>(() => initial?.values ?? {})
+  const [names, setNames] = useState<Record<string, string>>(() => initial?.names ?? {})
   const [voiceField, setVoiceField] = useState<string | null>(null)
-  const [instance, setInstance] = useState<StartWorkflowRun['instance']>('default')
+  const [instance, setInstance] = useState<StartWorkflowRun['instance']>(() => initial?.instance ?? 'default')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => { onDirty?.(Object.keys(values).length > 0 || instance !== 'default') }, [values, instance, onDirty])
+  useEffect(() => { onBusy?.(busy); return () => onBusy?.(false) }, [busy, onBusy])
   if (!workflow.form?.fields.length) return <p className="muted">尚未识别到可编辑输入，请先检测线上工作流。</p>
   const configured = workflow.application?.fields ?? workflow.form.fields.map((field): WorkflowApplication['fields'][number] => ({
     key: field.key, label: field.title, visibility: 'advanced', control: field.type === 'text' ? 'singleline' : 'native', defaultValue: field.defaultValue
@@ -53,7 +55,7 @@ export function WorkflowInputs({ workflow, onRun, onChooseMedia, onChooseVoice, 
   }
   return <><form className="workflow-dynamic-fields" onSubmit={async (event) => {
     event.preventDefault()
-    if (!onRun || busy || !workflow.form) return
+    if (!onRun || busy || blocked || !workflow.form) return
     const inputs: StartWorkflowRun['values'] = {}
     for (const field of workflow.form.fields) {
       const setting = configured.find((item) => item.key === field.key)
@@ -64,7 +66,7 @@ export function WorkflowInputs({ workflow, onRun, onChooseMedia, onChooseVoice, 
     }
     setBusy(true); setError('')
     try { if (await onRun(inputs, instance) !== false) onDirty?.(false) } catch (failure) { setError(failure instanceof Error ? failure.message : '运行失败') } finally { setBusy(false) }
-  }}>{legacyFields && <p className="field-error" role="alert">字段识别已升级，请先点击“重新检测”，再复核应用配置。</p>}<fieldset disabled={busy || legacyFields || workflow.application?.needsReview}>
+  }}>{initial?.warnings.length ? <div className="field-error" role="alert">{initial.warnings.map((warning) => <p key={warning}>{warning}</p>)}</div> : null}{legacyFields && <p className="field-error" role="alert">字段识别已升级，请先点击“重新检测”，再复核应用配置。</p>}<fieldset disabled={blocked || busy || legacyFields || workflow.application?.needsReview}>
     {configured.filter((field) => field.visibility === 'common').map(renderField)}
     {advanced.length > 0 && <details className="workflow-advanced"><summary>高级设置 <span className="muted">{advanced.length} 项</span></summary><div className="workflow-advanced-fields">{advanced.map(renderField)}</div></details>}
     {onRun && <div className="workflow-run-actions"><label className="workflow-instance">运行实例<SelectField aria-label="运行实例" value={instance} onChange={(event) => setInstance(event.target.value as StartWorkflowRun['instance'])}><SelectOption value="default">Lite</SelectOption><SelectOption value="plus">Plus</SelectOption><SelectOption value="ultra">Ultra</SelectOption></SelectField></label>
