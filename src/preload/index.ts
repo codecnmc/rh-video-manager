@@ -13,6 +13,7 @@ const api: DesktopApi = {
   chooseWorkflowMedia: (workflowId, key) => ipcRenderer.invoke('workflow-runs:choose-media', { workflowId, key }),
   listPublicVoices: () => ipcRenderer.invoke('voices:list'),
   renamePublicVoice: (input) => ipcRenderer.invoke('voices:rename', input),
+  deletePublicVoice: (input) => ipcRenderer.invoke('voices:delete', input),
   importPublicVoices: () => ipcRenderer.invoke('voices:import'),
   createPublicVoice: (input) => ipcRenderer.invoke('voices:from-asset', input),
   currentWindowClosePrompt: () => ipcRenderer.invoke('window:close-prompt-current'),

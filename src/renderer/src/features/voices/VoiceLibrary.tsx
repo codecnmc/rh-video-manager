@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faMicrophone, faPlus, faFolderOpen, faPen, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons'
+import { faMicrophone, faPlus, faFolderOpen, faPen, faMagnifyingGlass, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { confirmAction } from '@/components/ui/confirmation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
@@ -30,7 +31,7 @@ export function VoiceLibrary({ projectId, onNotice }: { projectId: string | null
     {voices.error && <p className="field-error" role="alert">{voices.error.message}</p>}
     <div className="voice-grid">{items.map((voice) => <article className="voice-card voice-library-card" key={voice.id}><header><span className="voice-card-icon"><FontAwesomeIcon icon={faMicrophone} /></span><div><h3 title={voice.name}>{voice.name}</h3><span className="muted">公共音色 · {voice.size >= 1048576 ? `${(voice.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(voice.size / 1024))} KB`}</span></div><Button variant="ghost" size="icon" title="重命名音色" aria-label={`重命名 ${voice.name}`} disabled={busy} onClick={() => setRenaming(voice)}><FontAwesomeIcon icon={faPen} /></Button></header>
       <VoiceAudioPlayer assetId={voice.assetId} name={voice.name} />
-      <footer><span className="muted">所有项目可用</span><Button variant="ghost" size="small" disabled={busy} onClick={() => void act(async () => { unwrap(await desktop().revealAsset(voice.assetId)) })}><FontAwesomeIcon icon={faFolderOpen} />打开位置</Button></footer>
+      <footer><Button variant="ghost" size="small" disabled={busy} title="从音色库移除" onClick={() => void act(async () => { if (!await confirmAction(`从公共音色库移除「${voice.name}」？移除后不再提供音色选择，底层音频和历史引用保留。`)) return; await voices.remove({ id: voice.id, expectedUpdatedAt: voice.updatedAt }); onNotice('已从音色库移除，原音频和历史引用保留') })}><FontAwesomeIcon icon={faTrash} />删除</Button><Button variant="ghost" size="small" disabled={busy} onClick={() => void act(async () => { unwrap(await desktop().revealAsset(voice.assetId)) })}><FontAwesomeIcon icon={faFolderOpen} />打开位置</Button></footer>
     </article>)}</div>{!voices.isPending && !items.length && <div className="voice-empty" role="status"><FontAwesomeIcon icon={faMicrophone} /><p>{search ? '没有匹配的音色' : '暂无公共音色'}</p><span className="muted">{search ? '试试其他名称' : '导入音频，或从已有素材创建公共音色。'}</span></div>}
     {renaming && <RenameVoiceDialog voice={renaming} onClose={() => setRenaming(null)} onSave={async (name) => { await voices.rename({ id: renaming.id, expectedUpdatedAt: renaming.updatedAt, name }); onNotice('音色名称已更新') }} />}
     {picker && <AssetPicker projectId={projectId} requiredKind="audio" onClose={() => setPicker(false)} onPick={async (asset) => {

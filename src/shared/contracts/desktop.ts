@@ -28,6 +28,7 @@ export interface DesktopApi {
   chooseWorkflowMedia(workflowId: string, key: string): Promise<Result<Asset | null>>
   listPublicVoices(): Promise<Result<PublicVoice[]>>
   renamePublicVoice(input: import('./voices').RenameVoice): Promise<Result<PublicVoice>>
+  deletePublicVoice(input: import('./voices').DeleteVoice): Promise<Result<void>>
   importPublicVoices(): Promise<Result<PublicVoice[]>>
   createPublicVoice(input: CreateVoice): Promise<Result<PublicVoice>>
   currentWindowClosePrompt(): Promise<Result<import('./window-close').WindowClosePrompt | null>>

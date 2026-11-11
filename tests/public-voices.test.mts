@@ -18,7 +18,7 @@ test('项目音频复制为独立公共音色，源素材删除后仍可查询',
       rows.set(asset.id, asset)
       return [asset]
     },
-    update(input) { const asset = { ...rows.get(input.id)!, name: input.name }; rows.set(asset.id, asset); return asset }
+    update(input) { const asset = { ...rows.get(input.id)!, name: input.name, tags: input.tags }; rows.set(asset.id, asset); return asset }
   }
   const voices = new VoiceService(library)
   const voice = await voices.fromAsset({ assetId: source.id, expectedUpdatedAt: 'now', name: '角色音色' })
@@ -30,6 +30,12 @@ test('项目音频复制为独立公共音色，源素材删除后仍可查询',
   assert.equal(renamed.name, '新角色名称')
   assert.equal(renamed.assetId, voice.assetId)
   assert.equal(rows.size, 1)
+  assert.throws(() => voices.remove({ id: voice.id, expectedUpdatedAt: 'old' }), /已更新/)
+  voices.remove({ id: voice.id, expectedUpdatedAt: renamed.updatedAt })
+  assert.equal(voices.list().length, 0)
+  assert.equal(rows.size, 1)
+  assert.equal(library.get(voice.assetId).name, '新角色名称')
+  assert.equal(library.get(voice.assetId).archived, false)
 })
 
 test('音色创建拒绝变化的来源版本', async () => {

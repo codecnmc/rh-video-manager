@@ -1,4 +1,4 @@
-import { createVoiceSchema, renameVoiceSchema, publicVoiceTag as voiceTag, type RenameVoice, type CreateVoice, type PublicVoice } from '../../../../shared/contracts/voices'
+import { createVoiceSchema, renameVoiceSchema, deleteVoiceSchema, publicVoiceTag as voiceTag, type DeleteVoice, type RenameVoice, type CreateVoice, type PublicVoice } from '../../../../shared/contracts/voices'
 import type { Asset, AssetFilter, ImportAssets, UpdateAsset } from '../../../../shared/contracts/assets'
 
 export interface VoiceLibrary {
@@ -28,6 +28,14 @@ export class VoiceService {
     this.get(input.id)
     const asset = this.library.get(input.id)
     return describe(this.library.update({ ...asset, name: input.name, expectedUpdatedAt: input.expectedUpdatedAt }))
+  }
+  remove(raw: DeleteVoice): void {
+    const input = deleteVoiceSchema.parse(raw)
+    const voice = this.get(input.id)
+    if (voice.updatedAt !== input.expectedUpdatedAt) throw new Error('音色已更新，请刷新后重新删除')
+    const asset = this.library.get(input.id)
+    // 移除音色身份而不删除素材，历史任务和草稿仍可读取原音频。
+    this.library.update({ ...asset, tags: asset.tags.filter((tag) => tag !== voiceTag), expectedUpdatedAt: input.expectedUpdatedAt })
   }
   async fromAsset(raw: CreateVoice): Promise<PublicVoice> {
     const input = createVoiceSchema.parse(raw)
