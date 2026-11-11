@@ -14,7 +14,6 @@ import { validPromptDocument } from '@contracts/prompt-document'
 import type { ReferenceKind, DraftReference } from '@contracts/references'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { InteractionHint } from '@/components/ui/interaction-hint'
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
 import { AssetImagePreview } from '@/features/assets'
 import { H3Syntax, ensureH3SyntaxPlugin, h3SyntaxPluginKey } from './h3-syntax'
@@ -38,6 +37,7 @@ interface PromptEditorProps {
   text: string; document: string; duration: number; disabled: boolean; references: DraftReference[]; busy: boolean
   onChange: (text: string, document: string) => void
   onImport: (kind: ReferenceKind) => void
+  onDropFiles: (files: File[]) => void
   onPasteImages: (files: File[]) => void
   onRemove: (reference: DraftReference) => void
   onReplace?: (reference: DraftReference) => void
@@ -47,7 +47,7 @@ interface PromptEditorProps {
   referenceStatus: 'loading' | 'ready' | 'error'
 }
 
-export function PromptEditor({ text, document, duration, disabled, references, busy, onChange, onImport, onPasteImages, onRemove, onReplace, onReveal, onCheckStructure, onOpenLibrary, referenceStatus }: PromptEditorProps) {
+export function PromptEditor({ text, document, duration, disabled, references, busy, onChange, onImport, onPasteImages, onDropFiles, onRemove, onReplace, onReveal, onCheckStructure, onOpenLibrary, referenceStatus }: PromptEditorProps) {
   const [expanded, setExpanded] = useState(false)
   const [tool, setTool] = useState<'time' | 'dialogue' | null>(null)
   const [time, setTime] = useState('')
@@ -58,6 +58,23 @@ export function PromptEditor({ text, document, duration, disabled, references, b
     immediatelyRender: false, shouldRerenderOnTransaction: true,
     editorProps: {
       attributes: { class: 'prompt-prose', role: 'textbox', 'aria-label': '全能参考提示词', 'aria-multiline': 'true' },
+      handleDrop: (view, event) => {
+        const transfer = event.dataTransfer
+        if (!transfer) return false
+        const files = Array.from(transfer.files)
+        const label = transfer.getData('application/x-workbench-reference')
+        if (!files.length && !label) return false
+        event.preventDefault()
+        if (disabled || busy) return true
+        if (files.length) { onDropFiles(files); return true }
+        // 只插入当前草稿中已经绑定的标签，不能信任外部拖入的引用内容。
+        if (references.some((reference) => reference.label === label)) {
+          const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from
+          const token = view.state.schema.nodes.promptReference?.create({ label })
+          if (token) view.dispatch(view.state.tr.insert(position, token))
+        }
+        return true
+      },
       handlePaste: (view, event, slice) => {
         const clipboard = event.clipboardData
         if (!clipboard) return false
@@ -96,6 +113,7 @@ export function PromptEditor({ text, document, duration, disabled, references, b
   const counts = (kind: ReferenceKind) => references.filter((reference) => reference.kind === kind).length
   return <div className={`prompt-composer ${expanded ? 'composer-expanded' : ''}`}>
     {expanded && <Button variant="ghost" size="icon" className="prompt-composer-close" title="退出提示词全屏" aria-label="退出提示词全屏" onClick={() => setExpanded(false)}><FontAwesomeIcon icon={faXmark} /></Button>}
+    <div className="prompt-editor-surface">
     <section className="prompt-references" aria-label="参考素材">
       <div className="prompt-reference-heading"><h3>参考素材</h3><div className="reference-add">
         <Button variant="ghost" size="small" disabled={disabled || busy} onClick={onOpenLibrary}><FontAwesomeIcon icon={faImages} />素材库</Button>
@@ -104,9 +122,12 @@ export function PromptEditor({ text, document, duration, disabled, references, b
         </SelectField>
       </div></div>
       <div className="reference-counts"><span>图片 {referenceStatus === 'ready' ? counts('image') : '—'}/9</span><span>视频 {referenceStatus === 'ready' ? counts('video') : '—'}/3</span><span>音频 {referenceStatus === 'ready' ? counts('audio') : '—'}/3</span></div>
-      <InteractionHint label="右键素材名称：替换、引用、解除关联"><p>点击图片可预览，右键图片可复制。右键素材名称区域可替换并保留编号、插入提示词引用、打开文件位置或解除关联。解除前需删除提示词中的对应标签并保存；原文件和历史生成记录仍保留。也可聚焦素材后按 Shift+F10 打开菜单。</p></InteractionHint>
       {references.length > 0 ? <div className="prompt-reference-list">{references.map((reference) => <ContextMenu key={reference.id}>
-        <ContextMenuTrigger asChild><div className="reference-item" tabIndex={0} role="group" aria-label={`${reference.label} ${reference.name}`} onKeyDown={(event) => {
+        <ContextMenuTrigger asChild><div className="reference-item" tabIndex={0} role="group" aria-label={`${reference.label} ${reference.name}`} draggable={!disabled && !busy} onDragStart={(event) => {
+          if (disabled || busy) { event.preventDefault(); return }
+          event.dataTransfer.setData('application/x-workbench-reference', reference.label)
+          event.dataTransfer.effectAllowed = 'copy'
+        }} onKeyDown={(event) => {
           if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
           event.preventDefault()
           const bounds = event.currentTarget.getBoundingClientRect()
@@ -114,7 +135,7 @@ export function PromptEditor({ text, document, duration, disabled, references, b
         }}>
         {reference.kind === 'image' ? <AssetImagePreview assetId={reference.assetId} name={reference.name} label={reference.label} />
           : <div className="reference-media-type"><FontAwesomeIcon icon={reference.kind === 'video' ? faFilm : faMicrophone} /><span>{reference.kind === 'video' ? '视频参考' : '音频参考'}</span></div>}
-        <div className="reference-label"><strong>{reference.label}</strong><span title={reference.name}>{reference.name}</span></div>
+        <div className="reference-label" title={`${reference.name} · 拖入提示词可插入引用；右键可替换、引用或解除关联`}><strong>{reference.label}</strong><span>{reference.name}</span></div>
         </div></ContextMenuTrigger>
         <ContextMenuContent>
           {onReplace && <ContextMenuItem disabled={disabled || busy} onSelect={() => onReplace(reference)}><FontAwesomeIcon icon={faArrowsLeftRight} />替换素材，保留 {reference.label}</ContextMenuItem>}
@@ -125,8 +146,6 @@ export function PromptEditor({ text, document, duration, disabled, references, b
         </ContextMenuContent>
       </ContextMenu>)}</div> : <div className="reference-empty" role="status">{referenceStatus === 'loading' ? '正在读取参考素材' : referenceStatus === 'error' ? '参考素材读取失败' : '暂无参考素材'}</div>}
     </section>
-    <h3 className="prompt-editor-heading">全能参考提示词</h3>
-    <div className="prompt-editor-surface">
     <div className="prompt-toolbar" role="toolbar" aria-label="提示词工具栏">
       <Button variant="ghost" size="icon" title="撤销" aria-label="撤销" disabled={disabled || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><FontAwesomeIcon icon={faRotateLeft} /></Button>
       <Button variant="ghost" size="icon" title="重做" aria-label="重做" disabled={disabled || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><FontAwesomeIcon icon={faRotateRight} /></Button>
@@ -145,8 +164,17 @@ export function PromptEditor({ text, document, duration, disabled, references, b
       <Button type="button" variant="ghost" size="small" title="检查结构及素材引用" disabled={disabled || busy} onMouseDown={(event) => event.preventDefault()} onClick={onCheckStructure}><FontAwesomeIcon icon={faListCheck} />检查结构</Button>
       <Button variant="ghost" size="icon" title={expanded ? '收起编辑器' : '展开编辑器'} aria-label={expanded ? '收起编辑器' : '展开编辑器'} onClick={() => setExpanded(!expanded)}><FontAwesomeIcon icon={expanded ? faCompress : faExpand} /></Button>
     </div>
-    <EditorContent editor={editor} className="prompt-content" />
-    <div className="prompt-reference-bar"><span className="prompt-character-count">{text.length.toLocaleString()} 字符</span></div>
+    <div className="prompt-drop-area" onDragOver={(event) => {
+      if (event.dataTransfer.types.includes('Files') || event.dataTransfer.types.includes('application/x-workbench-reference')) {
+        event.preventDefault(); event.dataTransfer.dropEffect = disabled || busy ? 'none' : 'copy'
+      }
+    }} onDrop={(event) => {
+      // 编辑器内的落点由 Tiptap 处理；空白边缘也接收文件，防止浏览器导航到文件。
+      if (event.defaultPrevented || !event.dataTransfer.files.length) return
+      event.preventDefault()
+      if (!disabled && !busy) onDropFiles(Array.from(event.dataTransfer.files))
+    }}><EditorContent editor={editor} className="prompt-content" /></div>
+    <div className="prompt-reference-bar"><span className="muted">拖入图片、视频或音频自动识别；拖动素材标签插入引用</span><span className="prompt-character-count">{text.length.toLocaleString()} 字符</span></div>
     </div>
     {tool && <Dialog title={tool === 'time' ? '时间点' : '对白'} onClose={() => setTool(null)}><form onSubmit={(event) => {
       event.preventDefault()

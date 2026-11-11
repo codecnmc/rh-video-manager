@@ -1,7 +1,6 @@
-import { Disclosure } from '@/components/ui/disclosure'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faClapperboard, faDownload, faLink, faTowerBroadcast, faVideo, faCircleNotch, faRotateRight, faPause, faPlay } from '@fortawesome/free-solid-svg-icons'
+import { faClapperboard, faDownload, faLink, faTowerBroadcast, faVideo, faCircleNotch, faRotateRight, faPause, faPlay, faFolderOpen } from '@fortawesome/free-solid-svg-icons'
 import type { PreviewKind, PreviewMedia, PreviewSnapshot } from '@contracts/preview'
 import { Button } from '@/components/ui/button'
 import { SelectField, SelectOption } from '@/components/ui/select-field'
@@ -9,6 +8,7 @@ import { desktop, unwrap } from '@/shared/lib/desktop'
 import { recordConsumptionLabel, summarizeDraftConsumption } from '../draft-consumption'
 import { PreviewVideoPlayer } from '@/shared/components/PreviewVideoPlayer'
 import { visibleEarlyPreviews } from '../preview-visibility'
+import { useWorkbenchUi } from '../workbench-store'
 
 const labels: Record<PreviewKind, string> = { sampling: '实时采样', draft: '低清预览', final: '最终成片' }
 
@@ -84,6 +84,9 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
       {kind === 'final' && hasConsumption && preview && <span className="preview-record-consumption"> · 本次 {recordConsumptionLabel(preview)}</span>}
       {kind === 'sampling' && preview?.samplingTotal ? ` · ${preview.samplingStep} / ${preview.samplingTotal}步` : ''}</span>
       <div className="button-row">
+        {localAssetId && <Button variant="ghost" size="icon" title="在资源管理器中显示成片" aria-label="在资源管理器中显示成片" onClick={() => {
+          void desktop().revealAsset(localAssetId).then(unwrap).catch((error: unknown) => onNotice(error instanceof Error ? error.message : '无法定位本地成片'))
+        }}><FontAwesomeIcon icon={faFolderOpen} /></Button>}
         <Button variant="ghost" size="icon" title={`复制${labels[kind]} URL`} aria-label={`复制${labels[kind]} URL`} disabled={!remoteMedia || !remoteMedia.source.startsWith('https:')}
           onClick={() => { if (preview) void desktop().copyPreviewUrl(preview.id, kind).then((result) => { unwrap(result); onNotice('媒体 URL 已复制') }).catch(() => onNotice('复制失败')) }}><FontAwesomeIcon icon={faLink} /></Button>
         <Button variant="ghost" size="icon" title={`下载${labels[kind]}`} aria-label={`下载${labels[kind]}`} disabled={!media || downloading} onClick={() => void download()}>
@@ -106,10 +109,24 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
 
 export function PreviewPanel({ preview, predecessor, title, onNotice, records, selectedRecord, onSelectRecord }: PreviewPanelProps) {
   const [outputPending, setOutputPending] = useState(false)
+  const kind = useWorkbenchUi((state) => state.previewKind)
+  const setKind = useWorkbenchUi((state) => state.setPreviewKind)
+  const [extra, setExtra] = useState<{ record: string; value: string } | null>(null)
   const consumption = summarizeDraftConsumption(records)
   const earlyPreviews = visibleEarlyPreviews(preview)
+  const defaultKind: PreviewKind = !preview || preview.remoteStatus === 'success' || preview.final ? 'final'
+    : earlyPreviews.includes('sampling') ? 'sampling' : earlyPreviews.includes('draft') ? 'draft' : 'final'
+  useEffect(() => {
+    // 仅在换任务或默认预览阶段变化时切换，不让轮询快照反复覆盖手动选择。
+    setKind(defaultKind)
+    setExtra(null)
+  }, [preview?.id, defaultKind, setKind])
   const outputs = (preview?.resultVideos ?? []).map((output, index) => ({ output, index }))
     .filter(({ output }) => output.source !== preview?.draft?.source && output.source !== preview?.final?.source)
+  const extraValue = extra?.record === preview?.id ? extra?.value : undefined
+  const outputSelection = outputs.find(({ index }) => extraValue === `output-${index}`)
+  const continuous = extraValue === 'continuity' && Boolean(predecessor) && earlyPreviews.includes('sampling')
+  const selectedKind = kind === 'final' || earlyPreviews.includes(kind) ? kind : 'final'
   async function outputAction(index: number, action: 'copy' | 'download') {
     if (!preview) return
     setOutputPending(true)
@@ -118,7 +135,7 @@ export function PreviewPanel({ preview, predecessor, title, onNotice, records, s
     } catch (error) { onNotice(error instanceof Error ? error.message : '操作失败') }
     finally { setOutputPending(false) }
   }
-  return <section className="review-pane">
+  return <section className="review-pane preview-pane-fit">
     <div className="pane-toolbar preview-toolbar"><h2>{title}</h2>
       {consumption.knownPoints !== null
         ? <div className="draft-consumption" title={`草稿历史生成的已知消耗积分合计，共 ${consumption.knownCount} 笔`}><span className="muted">累计</span> <strong>{consumption.knownPoints}</strong> <span className="muted">积分</span></div>
@@ -130,22 +147,24 @@ export function PreviewPanel({ preview, predecessor, title, onNotice, records, s
         {records.map((record, index) => <SelectOption key={record.id} value={record.id}>{`第 ${records.length - index} 次 · ${record.submittedAt ? new Date(record.submittedAt).toLocaleString('zh-CN') : record.taskId || record.id} · ${record.stage}`}</SelectOption>)}
       </SelectField>
     </div>
-    <PreviewSlot key={`${preview?.id}-final`} preview={preview} kind="final" onNotice={onNotice} />
-    {earlyPreviews.includes('sampling') && predecessor && <ContinuityPreview key={`${preview?.id}-${predecessor?.id}`} predecessor={predecessor} sampling={preview?.sampling ?? null} onNotice={onNotice} />}
-    <div className="early-previews">
-      {earlyPreviews.map((value) => <PreviewSlot key={`${preview?.id}-${value}`} preview={preview} kind={value} onNotice={onNotice} />)}
+    <div className="preview-kind-controls" role="group" aria-label="预览类型">
+      {(['final', ...earlyPreviews] as PreviewKind[]).map((value) => <Button key={value} variant="ghost" size="small" aria-pressed={!continuous && !outputSelection && selectedKind === value} onClick={() => { setExtra(null); setKind(value) }}>{labels[value]}</Button>)}
+      {earlyPreviews.includes('sampling') && predecessor && <Button variant="ghost" size="small" aria-pressed={continuous} onClick={() => { if (preview) setExtra({ record: preview.id, value: 'continuity' }) }}>连续预览</Button>}
+    </div>
+    {outputs.length > 0 && <SelectField aria-label="平台未分类视频输出" value={outputSelection ? extraValue : ''} onChange={(event) => { if (preview) setExtra(event.target.value ? { record: preview.id, value: event.target.value } : null) }}>
+      <SelectOption value="">平台视频输出（未分类 {outputs.length}）</SelectOption>
+      {outputs.map(({ index }) => <SelectOption key={index} value={`output-${index}`}>视频输出 {index + 1}</SelectOption>)}
+    </SelectField>}
+    <div className="review-stage">
+      {continuous ? <ContinuityPreview key={`${preview?.id}-${predecessor?.id}`} predecessor={predecessor} sampling={preview?.sampling ?? null} onNotice={onNotice} />
+        : outputSelection ? <section className="preview-slot" aria-label="平台视频输出"><div className="main-media"><MediaView media={outputSelection.output} kind="final" onDuration={() => undefined} /></div>
+          <div className="media-footer"><span className="muted">视频输出 {outputSelection.index + 1} · 未分类</span><div className="button-row">
+            <Button variant="ghost" size="icon" title="复制输出 URL" aria-label="复制输出 URL" disabled={outputPending} onClick={() => void outputAction(outputSelection.index, 'copy')}><FontAwesomeIcon icon={faLink} /></Button>
+            <Button variant="ghost" size="icon" title="下载视频输出" aria-label="下载视频输出" disabled={outputPending} onClick={() => void outputAction(outputSelection.index, 'download')}><FontAwesomeIcon icon={faDownload} /></Button>
+          </div></div></section>
+        : <PreviewSlot key={`${preview?.id}-${selectedKind}`} preview={preview} kind={selectedKind} onNotice={onNotice} />}
     </div>
     {preview?.notice && <p className="inline-warning">{preview.notice}</p>}
-    {outputs.length > 0 && <Disclosure className="platform-outputs" open>
-      <summary>平台视频输出（未分类 {outputs.length}）</summary>
-      {outputs.map(({ output, index }) => <div className="platform-output" key={output.source}>
-        <MediaView media={output} kind="final" onDuration={() => undefined} />
-        <div className="media-footer"><span className="muted">视频输出 {index + 1}</span><div className="button-row">
-          <Button variant="ghost" size="icon" title="复制输出 URL" aria-label="复制输出 URL" disabled={outputPending} onClick={() => void outputAction(index, 'copy')}><FontAwesomeIcon icon={faLink} /></Button>
-          <Button variant="ghost" size="icon" title="下载视频输出" aria-label="下载视频输出" disabled={outputPending} onClick={() => void outputAction(index, 'download')}><FontAwesomeIcon icon={faDownload} /></Button>
-        </div></div>
-      </div>)}
-    </Disclosure>}
     {preview?.capabilities.status === 'ready' && preview.capabilities.unclassifiedOutputs > 0 && <p className="inline-warning">存在未分类视频输出，低清与成片角色待确认。</p>}
   </section>
 }
