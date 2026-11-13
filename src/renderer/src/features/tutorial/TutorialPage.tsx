@@ -9,14 +9,18 @@ const captions = [
   'RunningHub 头像菜单：查看账号标识并进入控制台',
   '工作台账号池：添加账号，填写账号标识和 API Key 后保存并同步',
   'RunningHub 控制台：消费级－会员中的 API 密钥',
-  '工作流：下载软件内置的加速版工作流',
+  '工作流：视频加速版、音色设计和声音克隆模板下载及线上配置',
   'RunningHub 工作台：导入下载的工作流',
   '视频草稿：参考素材、H3 全能参考提示词与生成结果',
   '视频生成示例：核对参考素材、生成参数和实际成片',
   '推荐流程示例：与智能体讨论分镜和片段衔接',
-  '推荐流程示例：准备并修订分镜参考素材'
+  '推荐流程示例：准备并修订分镜参考素材',
+  '公共音色库：试听、管理并引用公共参考音频',
+  '声音克隆：参考音频原文、待合成台词与生成结果',
+  '独立 Skill：按需安装或导出内置技能',
+  '排片剪辑：时间轴预览、字幕与导出文件定位'
 ]
-type Destination = 'accounts' | 'workflows' | 'video' | 'mcp' | 'skills' | 'assembly' | 'image-generation'
+type Destination = 'accounts' | 'workflows' | 'video' | 'mcp' | 'skills' | 'assembly' | 'image-generation' | 'voices'
 
 export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) => void }) {
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -32,7 +36,7 @@ export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) =
     <h1>使用教程</h1><p className="muted">第一次使用，从准备工具开始。先配置账号池，再配置工作流，最后进入视频生产。</p>
     <nav className="tutorial-toc" aria-label="教程目录">
       <a href="#tutorial-ready">使用前提</a><a href="#tutorial-accounts">01 账号池</a><a href="#tutorial-workflows">02 工作流</a>
-      <a href="#tutorial-video">03 视频生成</a><a href="#tutorial-agent">推荐创作流程</a><a href="#tutorial-edit">排片与剪映</a>
+      <a href="#tutorial-video">03 视频生成</a><a href="#tutorial-voice">声音克隆与音色库</a><a href="#tutorial-agent">推荐创作流程</a><a href="#tutorial-edit">排片与剪映</a>
     </nav>
     <section id="tutorial-ready" className="tutorial-section"><h2>使用前提 · 准备好这些工具</h2>
       <ul><li><strong>RunningHub 会员：</strong>视频生成需要支持消费级 API Key 调用的会员权益和可用积分。购买前请确认对应套餐支持该能力。</li>
@@ -57,12 +61,21 @@ export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) =
         <li>检测线上工作流并核对识别结果。加速版包含采样与成片输出，没有独立低清预览；不同版本的可用预览能力可能不同。</li></ol>
       <p>如果工作流分享权限允许其他账号调用，可复用同一个线上工作流，无需重复上传；仍需在软件中为每个使用它的账号配置工作流归属，并确认该账号实际有权访问。</p>
       <div className="button-row"><Button onClick={() => onNavigate('workflows')}>前往工作流</Button></div>{figures([5, 6])}
+      <p>当前工作流支持视频与声音。声音模板提供 Qwen3 音色设计和 VoxCPM2 声音克隆；图片工作流模式已停用，图片生成请使用独立的“素材生成”。</p>
     </section>
     <section id="tutorial-video" className="tutorial-section"><h2>03 · 视频生成（配置完成后开始生产）</h2>
       <ol><li>先准备人物、场景和分镜图等参考素材，再创建项目与视频草稿。</li><li>使用内置 H3 视频提示词 Skill，让支持 Skill 的智能体输出 H3 六段式全能参考提示词，并核对其中图片、视频和音频引用与草稿中真实素材一致。</li>
         <li>将参考素材和提示词写入草稿，设置时长、画幅及清晰度，先保存并检查。</li><li>点击“提交生成”，明确选择账号与工作流，确认付费后提交。之后在任务队列查看进度，回到视频页核对可用预览和最终成片。</li></ol>
       <p className="tutorial-note">作者经验：搭配分镜图和加速工作流，部分约 10 秒片段可在 10 分钟以内完成。此为实测经验，排队、实例、分辨率和平台负载都会影响耗时，不作为完成时限承诺。截图中的单次结果仅作操作示例。</p>
-      <div className="button-row"><Button onClick={() => onNavigate('video')}>前往视频生成</Button><Button variant="outline" onClick={() => onNavigate('skills')}>获取 H3 提示词 Skill</Button></div>{figures([7, 8])}
+      <div className="button-row"><Button onClick={() => onNavigate('video')}>前往视频生成</Button><Button variant="outline" onClick={() => onNavigate('skills')}>获取 H3 提示词 Skill</Button></div>{figures([7])}
+    </section>
+    <section id="tutorial-voice" className="tutorial-section"><h2>声音克隆与公共音色库</h2>
+      <ol><li>从工作流页下载声音模板，导入 RunningHub，再配置所属账号与线上工作流 ID，检测后点击“打开”。</li>
+        <li>声音克隆需选择参考音频，在“参考音频文字”中填写录音的真实原文，在“台词”中填写需要合成的新内容。</li>
+        <li>“复制台词”复制展开区的推荐文本，适合先制作参考音频；不会自动填表，也不能替代已有录音的真实原文。</li>
+        <li>检查输入并确认费用后运行。完成的音频可试听、打开位置或加入公共音色库，供视频草稿作为音频参考引用。</li></ol>
+      <p>公共音色库负责收纳与引用；声音克隆在工作流运行页执行。参考文件仅在确认运行后上传，不因选择文件就自动提交。</p>
+      <div className="button-row"><Button onClick={() => onNavigate('workflows')}>前往声音工作流</Button><Button variant="outline" onClick={() => onNavigate('voices')}>打开公共音色库</Button></div>{figures([12, 11])}
     </section>
     <section id="tutorial-agent" className="tutorial-section"><h2>推荐创作流程 · 智能体准备，工作台生产</h2>
       <p>作者个人推荐使用 Codex 配合 Plus 会员完成分镜稿与素材准备，也可以选择其他支持所需能力的智能体。素材是视频创作的重要基础：先统一人物、场景和镜头参考，再批量准备多个片段。</p>
@@ -72,12 +85,13 @@ export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) =
         <li>单独启用剧本库能力后，可访问授权范围内的剧本文档；写操作仍受当前授权约束。</li><li>单独启用排片剪辑库能力后，可查询排片工程和版本、检查媒体，获得写权限后编排片段、声音、字幕和支持的转场等内容。</li>
         <li>素材生成相关操作需要另行开启对应权限；提交生成与额度限制以 MCP 页面当前授权为准。</li></ul>
       <p>视频生成付费提交仍在软件内确认。MCP 不提供账号密钥或任意磁盘读取；连接成功也不代表已经授予全部功能。</p>
-      <div className="button-row"><Button onClick={() => onNavigate('mcp')}>配置 MCP</Button><Button variant="outline" onClick={() => onNavigate('skills')}>查看内置 Skill</Button><Button variant="outline" onClick={() => onNavigate('image-generation')}>前往素材生成</Button></div>{figures([9, 10])}
+      <div className="button-row"><Button onClick={() => onNavigate('mcp')}>配置 MCP</Button><Button variant="outline" onClick={() => onNavigate('skills')}>查看内置 Skill</Button><Button variant="outline" onClick={() => onNavigate('image-generation')}>前往素材生成</Button></div>{figures([13, 9, 10])}
     </section>
     <section id="tutorial-edit" className="tutorial-section"><h2>排片剪辑库与剪映草稿</h2>
       <p>排片剪辑库用于编排已有片段，尤其适合预览生成片段之间的衔接。开启相应 MCP 授权后，可让智能体协助编排，再回软件检查画面、声音和节奏。</p>
       <p>需要继续在剪映精剪时，可使用内置“剪映草稿剪辑”Skill 创建可继续编辑的剪映草稿。需另行安装 Python 与 pyJianYingDraft 依赖，软件未打包这些运行依赖。具体环境配置与操作按技能说明执行。</p>
-      <div className="button-row"><Button onClick={() => onNavigate('assembly')}>前往排片剪辑库</Button><Button variant="outline" onClick={() => onNavigate('skills')}>获取剪映 Skill</Button></div>
+      <p>导出成功后，可在结果栏点击“在资源管理器中显示”，选中实际保存的 MP4 文件。</p>
+      <div className="button-row"><Button onClick={() => onNavigate('assembly')}>前往排片剪辑库</Button><Button variant="outline" onClick={() => onNavigate('skills')}>获取剪映 Skill</Button></div>{figures([14])}
     </section>
   </div>{expanded !== null && <Dialog className="tutorial-image-dialog" title={`图${expanded} · ${captions[expanded - 1]}`} onClose={() => setExpanded(null)}><img className="tutorial-full-image" src={source(expanded)} alt={captions[expanded - 1]} /></Dialog>}</section>
 }
