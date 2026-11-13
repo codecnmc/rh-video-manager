@@ -12,7 +12,8 @@ export class LocalSettingsEnvironment implements SettingsEnvironment {
   async information() {
     const dataDirectory = this.directory('data')
     const disk = await statfs(this.mediaDirectory()).catch(() => null)
-    return { version: app.getVersion(), dataDirectory, logsDirectory: this.directory('logs'), availableBytes: disk ? disk.bavail * disk.bsize : null }
+    return { version: app.getVersion(), dataDirectory, logsDirectory: this.directory('logs'), availableBytes: disk ? disk.bavail * disk.bsize : null,
+      manualRestartRequired: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL) }
   }
   async openDirectory(kind: SettingsDirectory): Promise<void> {
     const directory = this.directory(kind)

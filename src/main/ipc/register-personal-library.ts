@@ -23,20 +23,13 @@ export function registerPersonalLibrary(handle: DesktopHandle, library: ScriptLi
   handle('settings:choose-media-directory', async (_input, window) => {
     const selected = await dialog.showOpenDialog(window, { title: '选择素材存储位置', properties: ['openDirectory', 'createDirectory'] })
     if (selected.canceled || !selected.filePaths[0]) return null
-    const answer = await dialog.showMessageBox(window, { type: 'question', title: '更改素材存储位置',
-      message: '将素材存储位置更改到所选目录？',
-      detail: `目标父目录：${selected.filePaths[0]}\n会新建独立素材目录。重启时复制图片、音频、成片及采样，逐个校验后切换位置，再清理旧副本；失败保留原位置。数据库、账号和日志不移动。`,
-      buttons: ['取消', '设置待迁移位置'], defaultId: 0, cancelId: 0 })
-    return answer.response === 1 ? settings.planMediaStorage(selected.filePaths[0]) : null
+    return settings.planMediaStorage(selected.filePaths[0])
   })
   handle('settings:cancel-media-change', async () => settings.cancelMediaStorage())
-  handle('settings:restart-for-media', async (_input, window) => {
-    const answer = await dialog.showMessageBox(window, { type: 'question', title: '重启并迁移素材',
-      message: '现在重启应用并执行素材迁移或旧副本清理？', detail: '请先保存编辑内容。文件较多时启动可能需要更长时间，请勿强制结束应用。',
-      buttons: ['取消', '重启'], defaultId: 0, cancelId: 0 })
-    if (answer.response !== 1) return
+  handle('settings:restart-for-media', async () => {
     settings.assertCanRestartForStorage()
-    app.relaunch()
+    // electron-vite 会随 Electron 退出而关闭界面服务，直接 relaunch 会继承失效的服务地址。
+    if (app.isPackaged || !process.env.ELECTRON_RENDERER_URL) app.relaunch()
     app.quit()
   })
   handle('script-library:backup', async (_input, window) => {

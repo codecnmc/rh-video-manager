@@ -90,10 +90,15 @@ export async function initializeWorkbench(): Promise<void> {
   const scripts = new ScriptService(new SqliteScriptRepository(database.connection))
   const personalLibrary = new ScriptLibraryService(new SqliteScriptLibraryRepository(database.connection), randomUUID)
   const mediaStorage = new MediaStorageService(new SqliteMediaStorageRepository(database.connection), new LocalMediaStorageFiles(), app.getPath('userData'), () => {
-    if (workflowRuns?.hasPending() || workflowRuns?.hasActivity() || library.hasPendingImports() || imageGeneration?.hasPending() || imageGeneration?.hasActivity() || generation?.hasStorageActivity() || production.hasStorageActivity() || assemblyExport.hasActivity() ||
-      previews.list().some((task) => !['success', 'failed', 'cancelled'].includes(task.remoteStatus))) {
-      throw new Error('仍有导入、视频任务、音频任务、成片下载或导出未结束，请结束后再更改素材位置或重启迁移')
-    }
+    const blockers: string[] = []
+    if (library.hasPendingImports()) blockers.push('素材正在导入')
+    // 迁移在下次启动、恢复任务之前执行；与退出使用同一活动判断，历史待核对记录不应永久阻止迁移。
+    if (generation?.hasCloseActivity()) blockers.push('视频正在提交、生成或处理文件')
+    if (imageGeneration?.hasCloseActivity()) blockers.push('图片正在排队、生成或下载')
+    if (workflowRuns?.hasPending() || workflowRuns?.hasActivity()) blockers.push('声音工作流尚未结束，请在任务队列核对')
+    if (production.hasStorageActivity()) blockers.push('台词音频正在处理')
+    if (assemblyExport.hasActivity()) blockers.push('成片正在导出')
+    if (blockers.length) throw new Error(`暂时无法迁移素材：${blockers.join('；')}。请完成后重试。`)
   })
   // 所有文件适配器和任务恢复之前迁移，旧路径不再有进程内写入。
   await mediaStorage.initialize()

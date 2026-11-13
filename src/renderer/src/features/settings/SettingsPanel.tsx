@@ -76,7 +76,8 @@ export function SettingsPanel({ onDirty, onNotice, onOpenGuide }: { onDirty: (di
       {storage?.cleanupDirectory && <><dt>待清理旧副本</dt><dd>{storage.cleanupDirectory}</dd></>}
       </dl>}
       {(storage?.error || storageAction.error) && <p className="field-error" role="alert">{storageAction.error?.message || storage?.error}</p>}
-      {(storage?.pendingDirectory || storage?.cleanupDirectory) && <div className="button-row">
+      {storage?.pendingDirectory && <p className="muted settings-storage-notice">新位置已准备好，重启后开始复制并校验素材；完成后才切换目录。</p>}
+      {(storage?.pendingDirectory || storage?.cleanupDirectory) && <div className="button-row settings-storage-actions">
         {(storage?.pendingDirectory || storage?.cleanupDirectory) && <Button disabled={storageBusy} onClick={() => storageAction.mutate('restart')}><FontAwesomeIcon icon={faRotateLeft} />{storage.pendingDirectory ? '重启并迁移' : '重启并重试清理'}</Button>}
         {storage?.pendingDirectory && <Button variant="outline" disabled={storageBusy} onClick={() => storageAction.mutate('cancel')}><FontAwesomeIcon icon={faRotateLeft} />取消更改</Button>}</div>}
     </section>

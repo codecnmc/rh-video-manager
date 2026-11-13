@@ -22,4 +22,4 @@ export interface MediaStorageStatus {
   cleanupDirectory: string | null
   error: string
 }
-export interface AppInformation { version: string; dataDirectory: string; logsDirectory: string; availableBytes: number | null; mediaStorage?: MediaStorageStatus }
+export interface AppInformation { version: string; dataDirectory: string; logsDirectory: string; availableBytes: number | null; mediaStorage?: MediaStorageStatus; manualRestartRequired?: boolean }

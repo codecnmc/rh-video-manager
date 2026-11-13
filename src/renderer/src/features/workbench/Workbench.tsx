@@ -87,7 +87,6 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
   const [guideOpen, setGuideOpen] = useState(false)
   const [managementOpen, setManagementOpen] = useState(false)
   const [projectActionsOpen, setProjectActionsOpen] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [assemblyProjects, setAssemblyProjects] = useState<Array<string | null>>([])
   const [assemblyWindowRequests, setAssemblyWindowRequests] = useState<Record<string, number>>({})
@@ -422,13 +421,8 @@ function WorkbenchContent({ detached }: { detached: boolean }) {
       </div>
       <div className="sidebar-bottom">
         <Button data-guide-target="tasks" variant="unstyled" title="任务队列" aria-label="任务队列" className={`nav-item ${ui.view === 'tasks' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tasks'))}><FontAwesomeIcon icon={faListCheck} /><span>任务队列</span><span className="nav-count">{previews.data ? allTasks.length : '未读取'}</span></Button>
-        <Popover open={helpOpen} onOpenChange={setHelpOpen}>
-          <PopoverTrigger asChild><Button variant="unstyled" title="帮助与设置" aria-label="帮助与设置" className={`nav-item ${ui.view === 'tutorial' || ui.view === 'settings' ? 'active' : ''}`}><FontAwesomeIcon icon={faGear} /><span>帮助与设置</span></Button></PopoverTrigger>
-          <PopoverContent className="sidebar-action-popover" side="right" sideOffset={8} align="end" aria-label="帮助与设置">
-            <Button variant="ghost" onClick={() => { setHelpOpen(false); void navigate(() => ui.setView('tutorial')) }}><FontAwesomeIcon icon={faBookOpen} />使用教程</Button>
-            <Button variant="ghost" onClick={() => { setHelpOpen(false); void navigate(() => ui.setView('settings')) }}><FontAwesomeIcon icon={faGear} />设置</Button>
-          </PopoverContent>
-        </Popover>
+        <Button variant="unstyled" title="使用教程" aria-label="使用教程" className={`nav-item ${ui.view === 'tutorial' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('tutorial'))}><FontAwesomeIcon icon={faBookOpen} /><span>使用教程</span></Button>
+        <Button variant="unstyled" title="设置" aria-label="设置" className={`nav-item ${ui.view === 'settings' ? 'active' : ''}`} onClick={() => navigate(() => ui.setView('settings'))}><FontAwesomeIcon icon={faGear} /><span>设置</span></Button>
       </div></div><PoolStatus onNotice={setNotice} /><div className="local-status"><span className="ready-dot" /><span>SQLite · 本地存储</span></div>
     </aside>
     <main className="workspace-content">{ui.view !== 'image-generation' && workspaceHeader}

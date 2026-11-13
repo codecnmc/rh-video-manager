@@ -2,13 +2,14 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog'
 import { Button } from './button'
 
-interface Confirmation { message: string; resolve: (confirmed: boolean) => void; save?: () => Promise<boolean>; information?: boolean }
+interface ConfirmationOptions { title?: string; confirmLabel?: string }
+interface Confirmation extends ConfirmationOptions { message: string; resolve: (confirmed: boolean) => void; save?: () => Promise<boolean>; information?: boolean }
 const queue: Confirmation[] = []
 const listeners = new Set<() => void>()
 const notify = () => { for (const listener of listeners) listener() }
 
-export function confirmAction(message: string, save?: () => Promise<boolean>): Promise<boolean> {
-  return new Promise((resolve) => { queue.push({ message, resolve, save }); notify() })
+export function confirmAction(message: string, save?: () => Promise<boolean>, options?: ConfirmationOptions): Promise<boolean> {
+  return new Promise((resolve) => { queue.push({ ...options, message, resolve, save }); notify() })
 }
 
 export function showMessage(message: string): Promise<void> {
@@ -34,10 +35,10 @@ export function ConfirmationHost() {
   return <AlertDialogPrimitive.Root open onOpenChange={(open) => { if (!open && !saving) settle(false) }}><AlertDialogPrimitive.Portal>
     <AlertDialogPrimitive.Overlay className="ui-dialog-overlay" />
     <AlertDialogPrimitive.Content className="dialog ui-confirmation">
-      <AlertDialogPrimitive.Title asChild><h2>{current.information ? '操作提示' : '确认操作'}</h2></AlertDialogPrimitive.Title>
+      <AlertDialogPrimitive.Title asChild><h2>{current.title ?? (current.information ? '操作提示' : '确认操作')}</h2></AlertDialogPrimitive.Title>
       <AlertDialogPrimitive.Description className="ui-confirmation-message">{current.message}</AlertDialogPrimitive.Description>
       {error && <p role="alert" className="field-error">{error}</p>}
-      <div className="dialog-actions">{!current.information && <Button variant="outline" disabled={saving} onClick={() => settle(false)}>取消</Button>}<Button disabled={saving} onClick={() => settle(true)}>{current.information ? '知道了' : current.save ? '放弃修改' : '确认'}</Button>
+      <div className="dialog-actions">{!current.information && <Button variant="outline" disabled={saving} onClick={() => settle(false)}>取消</Button>}<Button disabled={saving} onClick={() => settle(true)}>{current.confirmLabel ?? (current.information ? '知道了' : current.save ? '放弃修改' : '确认')}</Button>
         {current.save && <Button disabled={saving} onClick={async () => {
           setSaving(true); setError('')
           try {

@@ -38,6 +38,8 @@
 .settings-storage-info p { margin: 6px 0; overflow-wrap: anywhere; line-height: 1.5; }
 .settings-storage-info .muted { font-size: 12px; }
 .settings-storage-row > .button-row, .settings-storage-row > button { flex-shrink: 0; }
+.settings-storage-notice { margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.settings-storage-actions { margin-top: 12px; }
 @container (max-width: 1000px) {
   .settings-columns { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .settings-column + .settings-column { padding-left: 0; border-left: 0; border-top: 1px solid var(--border); }
