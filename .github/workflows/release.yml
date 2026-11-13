@@ -73,6 +73,17 @@ jobs:
       - name: Build Windows x64 ZIP and SHA-256
         run: pnpm package:win:release
 
+      - name: Prepare detailed release notes
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $changelog = Get-Content CHANGELOG.md -Raw -Encoding utf8
+          $pattern = '(?ms)^## ' + [regex]::Escape($version) + ' · [^\r\n]+\r?\n(.*?)(?=^## |\z)'
+          $entry = [regex]::Match($changelog, $pattern)
+          if (!$entry.Success) { throw 'Missing detailed changelog for release version' }
+          $notice = 'Windows x64 ZIP，无需安装。完整解压后运行，不要只复制 EXE。未签名，使用前请核对 SHA-256。内置 FFmpeg 及静态依赖的许可说明见 resources/notices/media-engine.md；分发者须落实完整对应源码等许可证义务。'
+          ($entry.Groups[1].Value.Trim() + "`n`n" + $notice) | Set-Content release/release-notes.md -Encoding utf8
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -80,6 +91,7 @@ jobs:
           path: |
             release/rh-video-manager-*-win-x64.zip
             release/rh-video-manager-*-win-x64.zip.sha256
+            release/release-notes.md
           if-no-files-found: error
           retention-days: 14
 
@@ -112,7 +124,7 @@ jobs:
           if gh release view "$RELEASE_TAG" --json isDraft > release-state.json 2> release-error.txt; then
             node -e 'if (!JSON.parse(require("fs").readFileSync("release-state.json", "utf8")).isDraft) throw Error("Refusing to replace a published release")'
           else
-            gh release create "$RELEASE_TAG" --verify-tag --draft --title "羊驼AI影视 $RELEASE_TAG" --notes 'Windows x64 ZIP，无需安装。完整解压后运行，不要只复制 EXE。未签名，使用前请核对 SHA-256。内置 FFmpeg 及静态依赖的许可说明见 resources/notices/media-engine.md；分发者须落实完整对应源码等许可证义务。'
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "羊驼AI影视 $RELEASE_TAG" --notes-file artifacts/release-notes.md
           fi
           gh release upload "$RELEASE_TAG" "artifacts/$ZIP" "artifacts/$ZIP.sha256" --clobber
-          gh release edit "$RELEASE_TAG" --draft=false --latest --notes 'Windows x64 ZIP，无需安装。完整解压后运行，不要只复制 EXE。未签名，使用前请核对 SHA-256。内置 FFmpeg 及静态依赖的许可说明见 resources/notices/media-engine.md；分发者须落实完整对应源码等许可证义务。'
+          gh release edit "$RELEASE_TAG" --draft=false --latest --notes-file artifacts/release-notes.md
