@@ -6,6 +6,7 @@ import { assemblyExportProgressSchema } from '../shared/contracts/assembly-expor
 import { windowClosePromptSchema } from '../shared/contracts/window-close'
 
 const api: DesktopApi = {
+  copyVoiceReferenceText: () => ipcRenderer.invoke('workflow-runs:copy-voice-reference'),
   listWorkflowRuns: (workflowId) => ipcRenderer.invoke('workflow-runs:list', { workflowId }),
   startWorkflowRun: (input) => ipcRenderer.invoke('workflow-runs:start', input),
   refreshWorkflowRun: (id) => ipcRenderer.invoke('workflow-runs:refresh', { id }),

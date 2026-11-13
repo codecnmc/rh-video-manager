@@ -1,4 +1,5 @@
-import { dialog } from 'electron'
+import { clipboard, dialog } from 'electron'
+import { voiceReferenceText } from '../../shared/voice-reference'
 import { z } from 'zod'
 import { startWorkflowRunSchema } from '../../shared/contracts/workflow-runs'
 import { saveWorkflowApplicationSchema } from '../../shared/contracts/workflows'
@@ -9,6 +10,7 @@ import type { DesktopHandle } from './handle'
 import { referenceExtensions } from '../infrastructure/files/reference-files'
 
 export function registerWorkflowRuns(handle: DesktopHandle, runs: WorkflowRunService, workflows: WorkflowService, library: LibraryService) {
+  handle('workflow-runs:copy-voice-reference', async () => { clipboard.writeText(voiceReferenceText) })
   handle('workflows:save-application', async (input) => {
     const parsed = saveWorkflowApplicationSchema.parse(input)
     if (runs.hasPending(undefined, parsed.id)) throw new Error('请等待当前工作流任务结束后修改应用')

@@ -21,6 +21,7 @@ import type { ImageAccount, SaveImageAccount, ImageBoard, CreateImageBoard, Imag
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface DesktopApi {
+  copyVoiceReferenceText(): Promise<Result<void>>
   listWorkflowRuns(workflowId?: string): Promise<Result<WorkflowRun[]>>
   startWorkflowRun(input: StartWorkflowRun): Promise<Result<WorkflowRun>>
   refreshWorkflowRun(id: string): Promise<Result<WorkflowRun>>
