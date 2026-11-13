@@ -21,17 +21,18 @@ function capabilityLabel(preview: PreviewSnapshot, kind: PreviewKind): string {
 }
 
 function useMediaSource(media: PreviewMedia | null): string | undefined {
-  const [resolved, setResolved] = useState<{ media: PreviewMedia; source: string }>()
+  const [resolved, setResolved] = useState<{ original: string; source: string }>()
   useEffect(() => {
     if (!media) { setResolved(undefined); return }
-    if (!media.source.startsWith('data:')) { setResolved({ media, source: media.source }); return }
+    if (!media.source.startsWith('data:')) { setResolved({ original: media.source, source: media.source }); return }
     const encoded = media.source.slice(media.source.indexOf(',') + 1)
     const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0))
     const url = URL.createObjectURL(new Blob([bytes], { type: media.mime }))
-    setResolved({ media, source: url })
+    setResolved({ original: media.source, source: url })
     return () => URL.revokeObjectURL(url)
-  }, [media])
-  return resolved?.media === media ? resolved.source : undefined
+  // 快照会重建媒体对象，以地址为身份，避免刷新时清空 src、重置播放位置。
+  }, [media?.source, media?.mime])
+  return resolved?.original === media?.source ? resolved?.source : undefined
 }
 
 function MediaView({ media, kind, onDuration }: { media: PreviewMedia; kind: PreviewKind; onDuration: (seconds: number) => void }) {

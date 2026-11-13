@@ -1,8 +1,10 @@
 import type { AssemblyCanvas, AssemblyVersion, TitleVisual } from './contracts/assembly'
 
+// libass 用 hhea 的升部减降部归一化字号，CSS 用 head.unitsPerEm。
+// 补偿值来自随应用分发字体的实际表数据；替换字体时需同步更新。
 export const titleFonts = {
-  song: { label: '思源宋体', family: 'Noto Serif CJK SC', file: 'NotoSerifCJKsc-Regular.otf' },
-  sans: { label: '思源黑体', family: 'Noto Sans CJK SC', file: 'NotoSansCJKsc-Regular.otf' }
+  song: { label: '思源宋体', family: 'Noto Serif CJK SC', file: 'NotoSerifCJKsc-Regular.otf', assSizeScale: 1.437 },
+  sans: { label: '思源黑体', family: 'Noto Sans CJK SC', file: 'NotoSansCJKsc-Regular.otf', assSizeScale: 1.448 }
 } as const
 export const defaultTitleVisual: TitleVisual = {
   kind: 'title', text: '', font: 'song', size: 9, foreground: '#f2f2ec', background: '#171717', surface: 'fabric'

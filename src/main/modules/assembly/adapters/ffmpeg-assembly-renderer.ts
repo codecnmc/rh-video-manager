@@ -226,7 +226,7 @@ export class FfmpegAssemblyRenderer implements AssemblyRenderer {
         const progress = progressFor('captions', '烧录普通字幕', 94, 5, cursor)
         progress({ seconds: 0 })
         const style = plan.version.captionStyle ?? defaultCaptionStyle
-        const font = style.font ? titleFonts[style.font] : undefined
+        const font = titleFonts[style.font ?? 'sans']
         if (font) {
           try { await access(join(this.fontDirectory, font.file)) }
           catch { throw new Error(`字幕所需本地字体不可用：${font.label}`) }
@@ -241,7 +241,7 @@ export class FfmpegAssemblyRenderer implements AssemblyRenderer {
           const text = caption.text.replaceAll('\\', '\\\\').replaceAll('{', '\\{').replaceAll('}', '\\}').replace(/\r\n?|\n/g, '\\N')
           return `Dialogue: 0,${time(caption.start)},${time(Math.min(caption.end, cursor))},Default,,0,0,0,,${text}`
         })
-        const ass = `[Script Info]\nScriptType: v4.00+\nPlayResX: ${width}\nPlayResY: ${height}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${font?.family ?? 'Microsoft YaHei'},${height * style.size / 100},${color},${color},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,${height * style.outline / 100},0,${style.alignment === 'center' ? 5 : 2},${Math.round(width * 0.05)},${Math.round(width * 0.05)},${style.alignment === 'center' ? 0 : Math.round(height * style.bottom / 100)},1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n${events.join('\n')}\n`
+        const ass = `[Script Info]\nScriptType: v4.00+\nPlayResX: ${width}\nPlayResY: ${height}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${font?.family ?? 'Microsoft YaHei'},${height * style.size / 100 * font.assSizeScale},${color},${color},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,${height * style.outline / 100},0,${style.alignment === 'center' ? 5 : 2},${Math.round(width * 0.05)},${Math.round(width * 0.05)},${style.alignment === 'center' ? 0 : Math.round(height * style.bottom / 100)},1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n${events.join('\n')}\n`
         const subtitlePath = join(directory, 'captions.ass')
         await writeFile(subtitlePath, ass, 'utf8')
         finalOutput = join(directory, 'captioned.mp4')

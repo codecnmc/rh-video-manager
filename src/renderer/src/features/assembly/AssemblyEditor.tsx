@@ -94,7 +94,7 @@ export function AssemblyEditor(props: EditorProps) {
   const mcp = props.mcpStatus
   const mcpAuthorized = mcp?.enabled && mcp.assemblyEnabled && (mcp.allProjects || mcp.projectId === props.document.projectId)
   const mcpLabel = !mcp ? 'MCP 状态未读取' : !mcp.enabled ? 'MCP 未开启' : !mcp.assemblyEnabled ? 'MCP 未授权排片' : !mcpAuthorized ? 'MCP 项目未授权' : mcp.writeEnabled ? 'MCP 可读写' : 'MCP 只读'
-  const { exporting, exportVideo, cancel: cancelExport, progress: exportProgress, cancelling, dismissProgress } = useAssemblyExport({ document: props.document, content, dirty: editor.dirty,
+  const { exporting, exportVideo, cancel: cancelExport, progress: exportProgress, cancelling, revealExport, dismissProgress } = useAssemblyExport({ document: props.document, content, dirty: editor.dirty,
     disabled: baseLocked, externalChanges, save: editor.save, onNotice: props.onNotice })
   const locked = baseLocked || exporting
   const selectedSound = soundSelection?.versionId === version.id && version.sounds.some((sound) => sound.id === soundSelection.id) ? soundSelection.id : null
@@ -220,7 +220,7 @@ export function AssemblyEditor(props: EditorProps) {
         {exporting && <Button variant="ghost" size="icon" title="取消导出" aria-label="取消导出" onClick={cancelExport}><FontAwesomeIcon icon={faStop} /></Button>}
         <Button variant="outline" disabled={locked || !version.clips.length} title={!version.clips.length ? '请先添加视频片段' : '设置参数并导出当前版本为 MP4'} onClick={() => setExportSettingsOpen(true)}><FontAwesomeIcon icon={exporting ? faSpinner : faFileExport} spin={exporting} />{exporting ? '正在导出' : '导出'}</Button>
         <Button disabled={locked} title={editor.dirty ? '保存工程修改' : '当前工程已是最新保存状态'} onClick={save}><FontAwesomeIcon icon={editor.dirty ? faFloppyDisk : faCheck} />{props.saving ? '正在保存' : editor.dirty ? '保存' : '已保存'}</Button></div></header>
-    {exportProgress && <AssemblyExportProgressView progress={exportProgress} exporting={exporting} cancelling={cancelling} onCancel={cancelExport} onDismiss={dismissProgress} />}
+    {exportProgress && <AssemblyExportProgressView progress={exportProgress} exporting={exporting} cancelling={cancelling} onCancel={cancelExport} onDismiss={dismissProgress} onReveal={() => void revealExport()} />}
     {externalChanges && latest && <div className="assembly-external-change" role="status"><span>已有外部新修订，本地修改未覆盖</span><Button variant="outline" disabled={locked} onClick={() => void navigate(() => props.onOpen(latest))}><FontAwesomeIcon icon={faRotateRight} />载入最新版本</Button></div>}
     <div className="assembly-editing-area">
       <AssemblySources assets={props.assets} loading={props.assetsLoading} error={props.assetsError} disabled={locked} importing={props.importing}

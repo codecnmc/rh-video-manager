@@ -1,7 +1,7 @@
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFileExport, faStop, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faCheckCircle, faFileExport, faFolderOpen, faStop, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { assemblyExportOptionsSchema, type AssemblyExportOptions, type AssemblyExportProgress } from '@contracts/assembly-export'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,20 +42,28 @@ function elapsed(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}`
 }
 
-export function AssemblyExportProgressView({ progress, exporting, cancelling, onCancel, onDismiss }: {
-  progress: AssemblyExportProgress; exporting: boolean; cancelling: boolean; onCancel: () => void; onDismiss: () => void
+export function AssemblyExportProgressView({ progress, exporting, cancelling, onCancel, onDismiss, onReveal }: {
+  progress: AssemblyExportProgress; exporting: boolean; cancelling: boolean; onCancel: () => void; onDismiss: () => void; onReveal: () => void
 }) {
+  const completed = !exporting && progress.stage === 'completed'
   return <section className="assembly-export-progress" aria-label="导出进度">
-    <div className="assembly-export-status"><strong>{stages[progress.stage]}{progress.clipIndex && progress.clipCount ? ` · ${progress.clipIndex} / ${progress.clipCount}` : ''}</strong>
-      <span>总体估算 {progress.percent.toFixed(1)}%</span><span>已用 {elapsed(progress.elapsedSeconds)}</span>
-      {exporting ? <Button variant="ghost" size="small" disabled={cancelling} onClick={onCancel}><FontAwesomeIcon icon={faStop} />{cancelling ? '正在取消' : '取消导出'}</Button>
-        : <Button variant="ghost" size="icon" title="收起导出结果" aria-label="收起导出结果" onClick={onDismiss}><FontAwesomeIcon icon={faXmark} /></Button>}
+    <div className="assembly-export-status">
+      <div className="assembly-export-summary">
+        <strong>{completed && <FontAwesomeIcon icon={faCheckCircle} className="text-success" />}{stages[progress.stage]}{progress.clipIndex && progress.clipCount ? ` · ${progress.clipIndex} / ${progress.clipCount}` : ''}</strong>
+        {completed ? <span>成片已保存</span> : exporting && <span>总体估算 {progress.percent.toFixed(1)}%</span>}
+        <span>{exporting ? '已用' : '用时'} {elapsed(progress.elapsedSeconds)}</span>
+      </div>
+      <div className="assembly-export-actions">
+        {completed && <Button variant="outline" size="small" onClick={onReveal}><FontAwesomeIcon icon={faFolderOpen} />在资源管理器中显示</Button>}
+        {exporting ? <Button variant="ghost" size="small" disabled={cancelling} onClick={onCancel}><FontAwesomeIcon icon={faStop} />{cancelling ? '正在取消' : '取消导出'}</Button>
+          : <Button variant="ghost" size="icon" title="收起导出结果" aria-label="收起导出结果" onClick={onDismiss}><FontAwesomeIcon icon={faXmark} /></Button>}
+      </div>
     </div>
-    <progress max={100} value={progress.percent} aria-label="总体估算进度" />
-    <div className="assembly-export-detail"><span title={progress.detail}>{progress.detail}</span>
+    {exporting && <progress max={100} value={progress.percent} aria-label="总体估算进度" />}
+    {!completed && <div className="assembly-export-detail"><span title={progress.detail}>{progress.detail}</span>
       <span>{progress.stagePercent === null ? (exporting ? '处理中' : '') : `当前步骤 ${progress.stagePercent.toFixed(1)}%`}
         {progress.processedSeconds !== undefined && progress.durationSeconds !== undefined ? ` · ${progress.processedSeconds.toFixed(1)} / ${progress.durationSeconds.toFixed(1)} 秒` : ''}
         {progress.speed !== undefined ? ` · ${progress.speed.toFixed(2)}x` : ''}</span>
-    </div>
+    </div>}
   </section>
 }

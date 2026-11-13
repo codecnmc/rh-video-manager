@@ -74,6 +74,7 @@ const api: DesktopApi = {
   saveAssembly: (input) => ipcRenderer.invoke('assembly:save', input),
   exportAssembly: (input) => ipcRenderer.invoke('assembly:export', input),
   cancelAssemblyExport: (requestId) => ipcRenderer.invoke('assembly:cancel-export', { requestId }),
+  revealAssemblyExport: (requestId) => ipcRenderer.invoke('assembly:reveal-export', { requestId }),
   onAssemblyExportProgress: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, input: unknown) => {
       const parsed = assemblyExportProgressSchema.safeParse(input)

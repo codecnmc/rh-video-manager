@@ -4,6 +4,7 @@ import { faPlus, faRotateRight, faUpload, faMagnifyingGlass, faMusic, faVideo, f
 import type { Asset } from '@contracts/assets'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PreviewVideoPlayer } from '@/shared/components/PreviewVideoPlayer'
 import { mediaSource } from './use-assembly'
 import { timecode } from './assembly-state'
 import { useAssemblyPlaybackLease } from './AssemblyPlaybackScope'
@@ -75,6 +76,7 @@ function SourceCard({ asset, selected, used, disabled, onSelect, onAdd }: {
 export function AssemblySourcePreview({ asset, onClose, active = true }: { asset: Asset; onClose: () => void; active?: boolean }) {
   const [failed, setFailed] = useState(false)
   const preview = useRef<HTMLElement>(null)
+  useEffect(() => setFailed(false), [asset.id])
   const claimPlayback = useAssemblyPlaybackLease(() => preview.current?.querySelectorAll<HTMLMediaElement>('video, audio').forEach((element) => element.pause()))
   useEffect(() => {
     const container = preview.current
@@ -85,7 +87,7 @@ export function AssemblySourcePreview({ asset, onClose, active = true }: { asset
   }, [active])
   return <section ref={preview} className="assembly-preview assembly-source-preview">
     <div className="assembly-pane-heading"><h2>素材预览</h2><Button variant="outline" onClick={onClose}><FontAwesomeIcon icon={faXmark} />返回时间轴</Button></div>
-    <div className="assembly-preview-stage">{failed ? <div className="assembly-preview-empty" role="alert"><FontAwesomeIcon icon={faTriangleExclamation} /><span>素材不可用或格式不受支持</span></div> : asset.kind === 'video' ? <video src={mediaSource(asset.id)} controls playsInline preload="metadata" onPlay={claimPlayback} onError={() => setFailed(true)} /> : <div className="assembly-source-audio-preview"><FontAwesomeIcon icon={faMusic} /><audio src={mediaSource(asset.id)} controls preload="metadata" onPlay={claimPlayback} onError={() => setFailed(true)} /></div>}</div>
+    <div className="assembly-preview-stage">{failed ? <div className="assembly-preview-empty" role="alert"><FontAwesomeIcon icon={faTriangleExclamation} /><span>素材不可用或格式不受支持</span></div> : asset.kind === 'video' ? <PreviewVideoPlayer key={asset.id} source={mediaSource(asset.id)} sampling={false} label={asset.name} onDuration={() => {}} onPlay={claimPlayback} onError={() => setFailed(true)} /> : <div className="assembly-source-audio-preview"><FontAwesomeIcon icon={faMusic} /><audio src={mediaSource(asset.id)} controls preload="metadata" onPlay={claimPlayback} onError={() => setFailed(true)} /></div>}</div>
     <div className="assembly-preview-caption"><strong>{asset.name}</strong><span className="muted">{asset.projectId ? '项目素材' : '公共素材'}</span></div>
   </section>
 }

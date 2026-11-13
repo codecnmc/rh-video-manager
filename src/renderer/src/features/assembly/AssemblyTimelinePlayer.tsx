@@ -45,7 +45,7 @@ function useAssemblyPlayback({ version, seekRequest, onPosition, onNotice, activ
   const [aspect, setAspect] = useState(16 / 9)
   const [sourceSize, setSourceSize] = useState<{ width: number; height: number } | undefined>()
   const [fontsReady, setFontsReady] = useState(false)
-  const fonts = [...new Set([...version.clips.flatMap((clip) => clip.visual ? [clip.visual.font] : []), ...(version.captions?.length && version.captionStyle?.font ? [version.captionStyle.font] : [])])].sort()
+  const fonts = [...new Set([...version.clips.flatMap((clip) => clip.visual ? [clip.visual.font] : []), ...(version.captions?.length ? [version.captionStyle?.font ?? 'sans' as const] : [])])].sort()
   const fontsKey = fonts.join(',')
   useEffect(() => {
     let active = true
@@ -318,7 +318,7 @@ export function AssemblyTimelinePlayer(props: PlaybackProps) {
           {frameMask && <AssemblyRaster request={{ kind: 'mask', width: canvas.width, height: canvas.height, mask: frameMask }} />}
         </div>
       })}
-      {showCaptions && captions.length > 0 && <div className="assembly-caption-overlay" style={{ bottom: style.alignment === 'center' ? undefined : `${style.bottom}%`, top: style.alignment === 'center' ? '50%' : undefined, transform: style.alignment === 'center' ? 'translateY(-50%)' : undefined, fontFamily: style.font ? titleFonts[style.font].family : undefined, fontSize: frame.height * style.size / 100, WebkitTextStrokeWidth: frame.height * style.outline / 100, color: style.color }}>{captions.map((caption) => <div key={caption.id} className={props.selectedCaptionId === caption.id ? 'assembly-caption-preview-selected' : undefined}>{caption.text}</div>)}</div>}
+      {showCaptions && captions.length > 0 && <div className="assembly-caption-overlay" style={{ bottom: style.alignment === 'center' ? undefined : `${style.bottom}%`, top: style.alignment === 'center' ? '50%' : undefined, transform: style.alignment === 'center' ? 'translateY(-50%)' : undefined, fontFamily: titleFonts[style.font ?? 'sans'].family, fontSize: frame.height * style.size / 100, WebkitTextStrokeWidth: frame.height * style.outline / 100, color: style.color }}>{captions.map((caption) => <div key={caption.id} className={props.selectedCaptionId === caption.id ? 'assembly-caption-preview-selected' : undefined}>{caption.text}</div>)}</div>}
       {!version.clips.length && <div className="assembly-preview-empty"><FontAwesomeIcon icon={faClapperboard} /><span>尚未添加视频片段</span></div>}
     </div></div>
     {version.sounds.filter((sound) => sound.state === 'bound' && sound.assetId).map((sound) => <TimelineAudio key={`${audioContextEpoch}-${version.id}-${sound.id}-${sound.assetId}`} sound={sound} start={soundStart(version, sound)} gain={soundGain(version, sound)} context={audioContext} position={position} playing={playing} buffering={waiting} epoch={audioEpoch} volume={volume} onNotice={onNotice} />)}

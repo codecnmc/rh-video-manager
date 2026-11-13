@@ -74,6 +74,7 @@ export interface DesktopApi {
   saveAssembly(input: SaveAssembly): Promise<Result<AssemblyDocument>>
   exportAssembly(input: ExportAssembly): Promise<Result<boolean>>
   cancelAssemblyExport(requestId: string): Promise<Result<void>>
+  revealAssemblyExport(requestId: string): Promise<Result<void>>
   onAssemblyExportProgress(listener: (progress: AssemblyExportProgress) => void): () => void
   listLibraryDocuments(projectId?: string | null): Promise<Result<LibraryDocument[]>>
   assignLibraryDocument(input: AssignLibraryDocument): Promise<Result<LibraryDocument>>

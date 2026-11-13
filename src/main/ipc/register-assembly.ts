@@ -1,4 +1,4 @@
-import { app, dialog } from 'electron'
+import { app, dialog, shell } from 'electron'
 import { stat } from 'node:fs/promises'
 import { z } from 'zod'
 import { assemblyScopeSchema, saveAssemblySchema, exportAssemblySchema, assemblyWindowTargetSchema, assemblySelectionSchema } from '../../shared/contracts/assembly'
@@ -21,7 +21,16 @@ export function registerAssembly(handle: DesktopHandle, assembly: AssemblyServic
   createRenderer?: (ffmpeg: string, ffprobe: string) => AssemblyRenderer, mediaEngine?: MediaEngine,
   windows?: AssemblyWindowHost, settings?: SettingsService, assertProject?: (projectId: string | null) => Promise<void>): void {
   let active: { requestId: string; owner: number; controller: AbortController } | undefined
+  // 每个窗口只保留最近一次成功导出，渲染进程仅传请求 ID，不接受任意磁盘路径。
+  const exported = new Map<number, { requestId: string; path: string }>()
   app.once('will-quit', () => active?.controller.abort())
+  handle('assembly:reveal-export', async (input, window) => {
+    const { requestId } = z.object({ requestId: z.string().uuid() }).strict().parse(input)
+    const result = exported.get(window.id)
+    if (!result || result.requestId !== requestId) throw new Error('该导出结果已失效，请重新导出后定位文件')
+    if (!await stat(result.path).then((info) => info.isFile(), () => false)) throw new Error('成片文件已被移动或删除')
+    shell.showItemInFolder(result.path)
+  })
   handle('assembly:list', async (input) => assembly.list(assemblyScopeSchema.parse(input).projectId))
   handle('assembly:window-state', async (_input, window) => windows?.state(window.id) ?? { context: null, locks: [] })
   handle('assembly:open-window', async (input, window) => {
@@ -99,6 +108,10 @@ export function registerAssembly(handle: DesktopHandle, assembly: AssemblyServic
         if (overwrite.response !== 1) return false
       }
       await exporter.export(parsed, target, createRenderer(engine.ffmpeg, engine.ffprobe), controller.signal, publish)
+      if (!window.isDestroyed()) {
+        if (!exported.has(window.id)) window.once('closed', () => exported.delete(window.id))
+        exported.set(window.id, { requestId: parsed.requestId, path: target })
+      }
       completed = true
       publish({ stage: 'completed', detail: '成片已保存', percent: 100, stagePercent: 100 })
       return true

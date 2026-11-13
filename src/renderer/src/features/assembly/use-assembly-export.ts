@@ -31,6 +31,11 @@ export function useAssemblyExport(options: {
     return api.onAssemblyExportProgress((update) => { if (update.requestId === request.current) setProgress(update) })
   }, [])
   useEffect(() => () => cancel(), [])
+  async function revealExport() {
+    if (progress?.stage !== 'completed') return
+    try { unwrap(await desktop().revealAssemblyExport(progress.requestId)) }
+    catch (error) { options.onNotice(error instanceof Error ? error.message : '无法定位导出文件') }
+  }
   async function exportVideo(configuration: AssemblyExportOptions) {
     if (options.disabled || busy.current) return
     if (typeof desktop().onAssemblyExportProgress !== 'function') { options.onNotice('导出服务已升级，请在当前任务结束后重启应用再导出'); return }
@@ -70,5 +75,5 @@ export function useAssemblyExport(options: {
       request.current = null; busy.current = false; setExporting(false); setCancelling(false)
     }
   }
-  return { exporting, exportVideo, cancel, progress, cancelling, dismissProgress: () => setProgress(null) }
+  return { exporting, exportVideo, cancel, progress, cancelling, revealExport, dismissProgress: () => setProgress(null) }
 }

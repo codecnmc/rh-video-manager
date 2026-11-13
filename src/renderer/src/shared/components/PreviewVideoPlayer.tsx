@@ -8,8 +8,8 @@ function playbackTime(seconds: number): string {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`
 }
 
-export function PreviewVideoPlayer({ source, sampling, label, onDuration, onError }: {
-  source: string | undefined; sampling: boolean; label: string; onDuration: (seconds: number) => void; onError: () => void
+export function PreviewVideoPlayer({ source, sampling, label, onDuration, onError, onPlay }: {
+  source: string | undefined; sampling: boolean; label: string; onDuration: (seconds: number) => void; onError: () => void; onPlay?: () => void
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const player = useRef<HTMLDivElement>(null)
@@ -56,7 +56,7 @@ export function PreviewVideoPlayer({ source, sampling, label, onDuration, onErro
   }}>
     <div className="preview-player-stage" onDoubleClick={() => void toggleFullscreen()}><video ref={video} src={source} autoPlay={sampling} muted={muted} loop={sampling} playsInline preload="metadata" aria-label={label}
       onLoadedMetadata={(event) => { const seconds = event.currentTarget.duration; if (Number.isFinite(seconds)) { setDuration(seconds); onDuration(seconds) } }}
-      onTimeUpdate={(event) => setPosition(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
+      onTimeUpdate={(event) => setPosition(event.currentTarget.currentTime)} onPlay={() => { setPlaying(true); onPlay?.() }} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
       onVolumeChange={(event) => { setMuted(event.currentTarget.muted); setVolume(event.currentTarget.volume) }} onError={onError} />
       {!playing && <Button variant="unstyled" className="preview-player-play" title="播放视频" aria-label="播放视频" disabled={!source} onClick={() => void togglePlayback()}><FontAwesomeIcon icon={faPlay} /></Button>}
     </div>
