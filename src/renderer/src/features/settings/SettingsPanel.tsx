@@ -15,6 +15,7 @@ import { useMediaStorage } from './use-media-storage'
 import './settings.css'
 import { DataMigration } from './DataMigration'
 import { ReleaseUpdates } from './ReleaseUpdates'
+import { DialogDebug } from './DialogDebug'
 
 function PreferencesForm({ preferences, onDirty, onSaved }: { preferences: AppPreferences; onDirty: (dirty: boolean) => void; onSaved: (preferences: AppPreferences) => void }) {
   const form = useForm<AppPreferences>({ resolver: zodResolver(appPreferencesSchema), defaultValues: preferences })
@@ -57,6 +58,7 @@ export function SettingsPanel({ onDirty, onNotice, onOpenGuide }: { onDirty: (di
     <div className="settings-columns"><div className="settings-column">
     <ReleaseUpdates />
     <section className="settings-section"><h3>使用帮助</h3><Button variant="outline" onClick={onOpenGuide}>重新打开首次使用引导</Button></section>
+    {import.meta.env.DEV && <DialogDebug onNotice={onNotice} />}
     {preferences.data && <PreferencesForm preferences={preferences.data} onDirty={onDirty} onSaved={(saved) => { client.setQueryData(['app-preferences'], saved); onNotice('设置已保存') }} />}
     <section className="settings-section"><h3>剧本库备份</h3><div className="button-row"><Button variant="outline" disabled={busy} onClick={() => void act(async () => { if (unwrap(await desktop().exportLibraryBackup())) onNotice('剧本库文档已导出') })}><FontAwesomeIcon icon={faDownload} />导出文档备份</Button>
       <Button variant="outline" disabled={busy} onClick={() => void act(async () => { const count = unwrap(await desktop().importLibraryBackup()); if (count !== null) { await client.invalidateQueries({ queryKey: ['script-library'] }); onNotice(`已导入 ${count} 个文档副本`) } })}><FontAwesomeIcon icon={faUpload} />导入文档备份</Button></div>

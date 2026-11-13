@@ -21,6 +21,7 @@ import type { ImageAccount, SaveImageAccount, ImageBoard, CreateImageBoard, Imag
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface DesktopApi {
+  previewDialog(kind: import('./window-close').DialogPreview): Promise<Result<boolean>>
   copyVoiceReferenceText(): Promise<Result<void>>
   listWorkflowRuns(workflowId?: string): Promise<Result<WorkflowRun[]>>
   startWorkflowRun(input: StartWorkflowRun): Promise<Result<WorkflowRun>>

@@ -40,6 +40,7 @@ export function WindowCloseConfirmation() {
       <AlertDialogPrimitive.Description className="window-close-description">{prompt.exiting
         ? '现在退出将中断本地上传、下载和任务监听。'
         : '关闭此窗口后，其他窗口与后台任务仍会继续。'}</AlertDialogPrimitive.Description>
+      {prompt.preview && <p className="muted">调试预览：点击确认不会关闭窗口或退出应用。</p>}
       <div className="window-close-warning"><strong>关闭软件不等于取消远端任务</strong>
         <p>{prompt.exiting ? '远端任务可能仍在运行或已计费。重新打开后请核对状态，不会自动重新提交生成。' : '远端任务不会因为关闭这个窗口而取消，可能仍在运行或已计费。'}</p>
       </div>

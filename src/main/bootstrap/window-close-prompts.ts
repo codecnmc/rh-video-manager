@@ -32,13 +32,15 @@ export class WindowClosePrompts {
     return current ? { ...current.prompt } : null
   }
 
-  request(window: PromptWindow, exiting: boolean): Promise<boolean> {
+  requestPreview(window: PromptWindow, exiting: boolean): Promise<boolean> { return this.request(window, exiting, true) }
+
+  request(window: PromptWindow, exiting: boolean, preview = false): Promise<boolean> {
     if (window.isDestroyed() || window.webContents.isDestroyed()) return Promise.resolve(false)
     const existing = this.pending.get(window.id)
-    if (existing?.prompt.exiting === exiting) return existing.promise
+    if (existing?.prompt.exiting === exiting && Boolean(existing.prompt.preview) === preview) return existing.promise
     // 从关闭单窗升级为退出应用时，旧的“后台继续”说明不能授权整个进程退出。
     existing?.settle(false)
-    const prompt: WindowClosePrompt = { id: randomUUID(), exiting }
+    const prompt: WindowClosePrompt = { id: randomUUID(), exiting, ...(preview ? { preview: true } : {}) }
     let resolve: (confirmed: boolean) => void = () => {}
     const promise = new Promise<boolean>((complete) => { resolve = complete })
     const cancel = (): void => settle(false)

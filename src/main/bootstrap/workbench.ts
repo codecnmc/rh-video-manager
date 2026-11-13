@@ -3,8 +3,9 @@ import { SqliteWorkflowRunRepository } from '../infrastructure/database/workflow
 import { RunningHubWorkflowRunner } from '../providers/runninghub/workflow-runner'
 import { WorkflowOutputFiles } from '../infrastructure/files/workflow-output-files'
 import { VoiceService } from '../modules/voices'
-import { app, BrowserWindow, dialog, Notification } from 'electron'
+import { app, BrowserWindow, Notification } from 'electron'
 import { WindowClosePrompts } from './window-close-prompts'
+import { isLocalDialog, showLocalDialog } from './local-dialog'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
@@ -369,16 +370,11 @@ export async function initializeWorkbench(): Promise<void> {
       window.show(); window.focus()
       return closePrompts.request(window, exiting)
     }
-    // 加载中或渲染器不可用时保留系统确认，不能因为定制界面不可用而放行退出。
-    const options = {
-      type: 'warning' as const, title: '仍有生成任务未结束',
-      message: exiting ? '仍有排队、生成、下载或状态待核对的任务，确定退出软件？' : '仍有生成任务未结束，确定关闭此窗口？',
-      detail: exiting
+    return showLocalDialog({ parent: window, title: '仍有生成任务未结束',
+      message: (exiting ? '仍有排队、生成、下载或状态待核对的任务，确定退出软件？' : '仍有生成任务未结束，确定关闭此窗口？') + '\n\n' + (exiting
         ? '退出会中断本地上传、下载和任务监听。关闭软件不等于取消远端任务，可能已计费；重启后需核对状态，不会自动重新提交生成。'
-        : '其他窗口仍保持打开，后台任务会继续。关闭此窗口不等于取消远端任务。',
-      buttons: ['继续等待', exiting ? '仍然退出' : '关闭此窗口'], defaultId: 0, cancelId: 0, noLink: true
-    }
-    return (window ? dialog.showMessageBoxSync(window, options) : dialog.showMessageBoxSync(options)) === 1
+        : '其他窗口仍保持打开，后台任务会继续。关闭此窗口不等于取消远端任务。'),
+      cancelLabel: '继续等待', confirmLabel: exiting ? '仍然退出' : '关闭此窗口' })
   }
   app.on('before-quit', (event) => {
     if (migration.isBusy()) { event.preventDefault(); return }
@@ -406,15 +402,16 @@ export async function initializeWorkbench(): Promise<void> {
       setImmediate(() => { if (!event.defaultPrevented) taskQuitConfirmed = false })
     })
     window.on('close', (event) => {
+      if (isLocalDialog(window)) return
       if (migration.isBusy()) { event.preventDefault(); return }
       if (taskQuitConfirmed || confirmedWindows.delete(window) || !hasGenerationActivity()) return
       event.preventDefault()
       if (closingWindows.has(window)) return
       closingWindows.add(window)
-      const exiting = BrowserWindow.getAllWindows().filter((item) => !item.isDestroyed()).length <= 1
+      const exiting = BrowserWindow.getAllWindows().filter((item) => !item.isDestroyed() && !isLocalDialog(item)).length <= 1
       void confirmTaskClose(window, exiting).then((confirmed) => {
         if (!confirmed || window.isDestroyed() || migration.isBusy()) return
-        const nowExiting = BrowserWindow.getAllWindows().filter((item) => !item.isDestroyed()).length <= 1
+        const nowExiting = BrowserWindow.getAllWindows().filter((item) => !item.isDestroyed() && !isLocalDialog(item)).length <= 1
         if (nowExiting !== exiting) { closingWindows.delete(window); window.close(); return }
         if (exiting) taskQuitConfirmed = true
         else confirmedWindows.add(window)

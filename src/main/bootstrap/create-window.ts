@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, dialog, nativeImage, shell } from 'electron'
 import { pathToFileURL } from 'node:url'
 import { canUseMediaFullscreen } from './fullscreen-permission'
+import { showLocalDialog } from './local-dialog'
 
 export async function createWindow(options?: { assembly?: true; workbench?: true; onCreated: (window: BrowserWindow) => void }): Promise<BrowserWindow> {
   const rendererUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
@@ -74,12 +75,17 @@ export async function createWindow(options?: { assembly?: true; workbench?: true
   })
   window.webContents.on('will-navigate', (event) => event.preventDefault())
   if (options?.assembly) window.on('page-title-updated', (event) => event.preventDefault())
+  let discardConfirmed = false
+  let discardPending = false
   window.webContents.on('will-prevent-unload', (event) => {
-    const choice = dialog.showMessageBoxSync(window, {
-      type: 'warning', title: '修改尚未保存', message: '当前内容尚未保存，是否放弃修改并关闭？',
-      buttons: ['返回编辑', '放弃修改'], defaultId: 0, cancelId: 0
-    })
-    if (choice === 1) event.preventDefault()
+    if (discardConfirmed) { discardConfirmed = false; event.preventDefault(); return }
+    if (discardPending) return
+    // 本轮仍阻止关闭，异步确认后再发起一次关闭；只有新一轮才放行 beforeunload。
+    discardPending = true
+    void showLocalDialog({ parent: window, title: '修改尚未保存', message: '当前内容尚未保存。放弃修改后将关闭此窗口，未保存的内容无法恢复。',
+      cancelLabel: '返回编辑', confirmLabel: '放弃修改并关闭' }).then((confirmed) => {
+      if (confirmed && !window.isDestroyed()) { discardConfirmed = true; window.close() }
+    }).finally(() => { discardPending = false })
   })
   window.once('ready-to-show', () => { if (options?.assembly) window.maximize(); window.show() })
 
