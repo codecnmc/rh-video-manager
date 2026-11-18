@@ -52,7 +52,7 @@ const note = mode === 'release'
   : mode === 'current'
   ? '本机现有数据调试版：直接使用 %APPDATA%\\AI 视频工作台。保留现有项目、素材位置、账号加密 Key 和 MCP 配置。不会把数据或 Key 复制进 ZIP；仅适用于当前 Windows 用户和电脑。修改会写入原数据。请先关闭开发版，再运行本包，避免单实例冲突和 MCP 5189 端口冲突。MCP 授权仍由软件设置控制，不会扩大授权。'
   : `空白配置版：使用独立数据目录 %APPDATA%\\AI 视频工作台 profiles\\empty-${id}。不读取现有项目、账号或 MCP 配置。每次重新打包生成新的空白配置；同一包再次运行保留本包使用记录。MCP 首次需手动配置授权，固定 5189 端口不能与现有数据版同时使用。`
-await writeFile(join(unpacked, '使用说明.txt'), `${note}\r\n\r\n请完整解压后运行 羊驼AI影视.exe，不要只复制 EXE。\r\n公开分发前须落实内置 FFmpeg 及静态依赖的完整对应源码等许可义务，详见 resources/notices/media-engine.md。\r\n`, 'utf8')
+await writeFile(join(unpacked, '使用说明.txt'), `${note}\r\n\r\n请完整解压后运行 羊驼AI影视.exe，不要只复制 EXE。\r\n新版可能升级共享数据库，升级后旧版不一定能打开同一份数据；移动素材目录不会改变这一限制。数据库结构升级前会在数据目录的 database/backups 中保存一致性备份，备份失败则停止升级。请保留当前数据和素材，不要手工降低数据库版本号，也不要直接用旧备份覆盖当前数据；旧备份不包含后续修改和素材文件。\r\n公开分发前须落实内置 FFmpeg 及静态依赖的完整对应源码等许可义务，详见 resources/notices/media-engine.md。\r\n`, 'utf8')
 const archive = join(root, 'release', `${name}.zip`)
 await new Promise((resolveResult, reject) => {
   const child = spawn(path7za, ['a', '-tzip', '-mx=5', archive, 'win-unpacked'], { cwd: output, windowsHide: true, stdio: 'inherit' })

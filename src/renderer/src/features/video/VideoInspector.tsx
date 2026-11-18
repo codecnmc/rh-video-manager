@@ -23,7 +23,7 @@ import { AssetPicker } from '@/features/assets'
 import { selectInstanceTier } from './instance-policy'
 import { DialogueProduction, useSpeechCapabilities } from '@/features/production'
 import { useGeneration } from './use-generation'
-import { useWorkflows } from '@/features/workflows'
+import { useGenerationSources, useWorkflows } from '@/features/workflows'
 
 interface VideoInspectorProps {
   draft: VideoDraft
@@ -42,6 +42,10 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
   const formId = useId()
   const form = useForm<z.input<typeof videoDraftSchema>, unknown, VideoDraft>({ resolver: zodResolver(videoDraftSchema), defaultValues: draft })
   const workflows = useWorkflows()
+  const sources = useGenerationSources()
+  const generationTarget = form.watch('generationTarget')
+  const localVideoTargets = (sources.data?.sources ?? []).flatMap((source) => (source.workflows ?? []).filter((workflow) => workflow.kind === 'video' && workflow.enabled && source.enabled).map((workflow) => ({ source, workflow })))
+  const generationTargetValue = generationTarget?.kind === 'comfyui' ? `comfyui:${generationTarget.sourceId}:${generationTarget.workflowId ?? localVideoTargets.find((item) => item.source.id === generationTarget.sourceId)?.workflow.id ?? ''}` : generationTarget?.kind === 'rh' ? generationTarget.workflowConfigId ? `rh:${generationTarget.workflowConfigId}` : 'rh' : 'auto'
   const supportsCombat = workflows.data?.some((workflow) => workflow.enabled && workflow.isDefault && workflow.capabilities?.combat) ?? false
   const references = useDraftReferences(draft.id, saved)
   const generation = useGeneration(projectId, draft.id, onNotice, onSubmitted)
@@ -182,6 +186,17 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
           <div className="pane-toolbar"><h3>片段参数</h3><Button variant="ghost" size="icon" title="关闭片段参数" aria-label="关闭片段参数" onClick={() => setParametersOpen(false)}><FontAwesomeIcon icon={faXmark} /></Button></div>
           {/* 浮窗通过 Portal 渲染，需显式保留提交中的禁用保护。 */}
           <fieldset className="parameter-section" disabled={saving || generation.pending}>
+          <div className="parameter-field"><label htmlFor="generation-target">生成来源</label>
+            <Select value={generationTargetValue} disabled={saving || generation.pending || sources.isPending || sources.isError} onValueChange={(value) => {
+              const [, sourceId, workflowId] = value.split(':')
+              form.setValue('generationTarget', value === 'auto' ? undefined : value.startsWith('comfyui:') && sourceId && workflowId ? { kind: 'comfyui', sourceId, workflowId } : value.startsWith('rh:') ? { kind: 'rh', workflowConfigId: value.slice(3) } : { kind: 'rh' }, { shouldDirty: true, shouldValidate: true })
+            }}><SelectTrigger id="generation-target"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="auto">自动路由（按规则，默认 RH）</SelectItem><SelectItem value="rh">仅 RH · 自动选择账号</SelectItem>
+              {(workflows.data ?? []).filter((item) => item.provider !== 'comfyui' && item.enabled && (item.kind ?? 'video') === 'video' && item.accountId).map((item) => <SelectItem key={item.id} value={`rh:${item.id}`}>RH · {item.name}</SelectItem>)}
+              {localVideoTargets.map(({ source, workflow }) => <SelectItem key={workflow.id} value={`comfyui:${source.id}:${workflow.id}`}>ComfyUI · {source.name} / {workflow.name}</SelectItem>)}
+              {generationTargetValue.startsWith('comfyui:') && !localVideoTargets.some(({ source, workflow }) => `comfyui:${source.id}:${workflow.id}` === generationTargetValue) && <SelectItem value={generationTargetValue}>原 ComfyUI 工作流不可用</SelectItem>}
+            </SelectContent></Select>
+            {sources.error && <p className="field-error">生成来源载入失败，请重新打开设置后核对</p>}
+          </div>
           <div className="settings-grid">
             <label htmlFor="video-duration">时长<Input id="video-duration" type="number" min={4} max={15} {...form.register('duration', { valueAsNumber: true })} /><span className="unit">秒</span></label>
             <div className="parameter-field"><label htmlFor="video-aspect-ratio">画面比例</label>
@@ -190,7 +205,7 @@ export function VideoInspector({ draft, projectId, saved, saving, externalChange
               </Select></div>
             <div className="parameter-field"><label htmlFor="video-resolution">分辨率</label>
               <Select value={resolution} disabled={saving || generation.pending} onValueChange={(value) => form.setValue('resolution', videoDraftSchema.shape.resolution.parse(value), { shouldDirty: true, shouldValidate: true })}>
-                <SelectTrigger id="video-resolution"><SelectValue /></SelectTrigger><SelectContent>{['720P', '1080P'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                <SelectTrigger id="video-resolution"><SelectValue /></SelectTrigger><SelectContent>{['480P', '720P', '1080P'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
               </Select></div>
           </div>
           {(supportsCombat || form.watch('combatEnabled')) && <label className="check-field"><Checkbox checked={form.watch('combatEnabled') ?? false}

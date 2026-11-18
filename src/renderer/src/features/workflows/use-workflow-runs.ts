@@ -23,7 +23,8 @@ export function useWorkflowRuns(workflowId?: string) {
     },
     async start(workflow: Workflow, values: StartWorkflowRun['values'], instance: StartWorkflowRun['instance']) {
       if (!workflow.checkedAt) throw new Error('请先成功检测工作流')
-      if (!await confirmAction(`使用工作流「${workflow.name}」及其所属账号运行？\n账号 ID：${workflow.accountId}\n参考文件将上传至 RunningHub，本次会消耗该账号额度，以平台结算为准。产物保存到公共素材库，所有项目可用。受理不明不会自动重试或换账号。`)) return false
+      const destination = workflow.provider === 'comfyui' ? `连接：${workflow.sourceName ?? '指定 ComfyUI'}\n参考素材传入此实例并在其中排队；不自动转到 RH。` : `账号 ID：${workflow.accountId}\n参考文件将上传至 RunningHub，本次消耗该账号额度，以平台结算为准。`
+      if (!await confirmAction(`使用工作流「${workflow.name}」运行？\n${destination}\n产物保存到公共素材库，所有项目可用。受理不明不会自动重试或切换来源。`)) return false
       requestId.current ??= crypto.randomUUID()
       const result = unwrap(await desktop().startWorkflowRun({ requestId: requestId.current, workflowId: workflow.id, expectedCheckedAt: workflow.checkedAt, expectedApplicationUpdatedAt: workflow.application?.updatedAt || null, values, instance, confirmed: true }))
       if (result.status !== 'unknown' && result.status !== 'submitting' && result.status !== 'preparing') requestId.current = null

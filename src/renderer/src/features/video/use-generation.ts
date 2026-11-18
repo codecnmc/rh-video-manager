@@ -1,4 +1,4 @@
-import { confirmAction } from '@/components/ui/confirmation'
+import { confirmAction, confirmChoice } from '@/components/ui/confirmation'
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { desktop, unwrap } from '@/shared/lib/desktop'
@@ -34,8 +34,21 @@ export function useGeneration(projectId: string, draftId: string, onNotice: (mes
       const replacementNotice = unfinished.length
         ? `该草稿有 ${unfinished.length} 笔旧任务尚未确认结束，是否仍要重新生成？\n${unfinished.map((task) => `远端任务 ${task.taskId}：${task.cancelState === 'requested' ? '已请求取消，终态待核对' : '未确认结束'}`).join('\n')}\n本次会创建新任务并切换当前预览，保留旧任务和采样，不会再次取消旧任务或把它标记为已取消。若旧任务仍在运行，可能重复计费；不保证退款。\n\n`
         : ''
-      const confirmed = await confirmAction(`${replacementNotice}自动选择有可用并发的启用账号及其默认工作流提交生成？\n${draft.duration} 秒 · ${draft.aspectRatio} · ${draft.resolution} · ${draft.instance === 'default' ? 'Lite' : draft.instance === 'plus' ? 'Plus' : 'Ultra'}\n参考素材将上传到 RunningHub，运行会消耗所调度账号的额度，具体费用以平台结算为准。受理不明不会换账号重提；取消不保证退款。`)
-      if (!confirmed) return
+      const route = unwrap(await desktop().resolveGenerationTarget({ resolution: draft.resolution, ...(draft.generationTarget ? { target: draft.generationTarget } : {}) }))
+      const local = route.target.kind === 'comfyui'
+      const details = `${draft.duration} 秒 · ${draft.aspectRatio} · ${draft.resolution}`
+      const rhNotice = '参考素材将上传到 RunningHub，运行会消耗所选账号额度，具体费用以平台结算为准。'
+      let target = route.target
+      if (route.comfyBusy === true) {
+        const choice = await confirmChoice(`${replacementNotice}${route.name} 正在运行任务。\n${details}\n本次可以加入 ComfyUI 队列，也可以提交到 RunningHub。选择 RunningHub 时会自动匹配启用账号及其默认工作流。\n${rhNotice}`, {
+          title: '选择本次生成来源', confirmLabel: '提交到 ComfyUI 队列', alternateLabel: '提交到 RunningHub'
+        })
+        if (choice === 'cancel') return
+        if (choice === 'alternate') target = { kind: 'rh' }
+      } else {
+        const destination = local ? '参考素材将传入此 ComfyUI 实例，任务按实例队列运行。' : rhNotice
+        if (!await confirmAction(`${replacementNotice}使用 ${route.name} 提交生成？\n${details}\n${destination}`, undefined, local ? { confirmLabel: '提交到 ComfyUI 队列' } : undefined)) return
+      }
       await save(draft)
       const workspace = unwrap(await desktop().loadWorkspace())
       const saved = workspace.projects.find((project) => project.id === projectId)?.videoDrafts.find((item) => item.id === draftId)
@@ -45,7 +58,7 @@ export function useGeneration(projectId: string, draftId: string, onNotice: (mes
       if (!request.current || !tasks.some((task) => task.id === request.current?.id)) request.current = { id: request.current?.id ?? crypto.randomUUID(),
         ...(unfinished.length ? { replacement: { taskIds: unfinished.map((task) => task.id), confirmed: true } } : {}) }
       const task = unwrap(await desktop().scheduleGeneration({ requestId: request.current.id, projectId, draftId,
-        expectedRevision: workspace.revision, confirmed: true, replacement: request.current.replacement }))
+        expectedRevision: workspace.revision, target, routingRevision: route.revision, confirmed: true, replacement: request.current.replacement }))
       client.setQueryData<PreviewSnapshot[]>(['previews'], (previous = []) => [task, ...previous.filter((item) => item.id !== task.id)])
       onSubmitted(task.id)
       if (task.taskId || task.remoteStatus === 'failed') request.current = null

@@ -47,6 +47,8 @@ export interface PreviewSnapshot {
   workflowId: string
   workflowConfigId: string
   accountId: string
+  provider?: 'runninghub' | 'comfyui'
+  sourceName?: string
   capabilities: PreviewCapabilities
   projectId: string
   draftId: string
@@ -80,8 +82,9 @@ export interface PreviewSnapshot {
 const previewMediaSchema = z.object({ source: z.string().max(35 * 1024 * 1024),
   mime: z.enum(['image/jpeg', 'image/png', 'image/webp', 'video/mp4']), receivedAt: z.string().datetime() })
 export const previewSnapshotSchema = z.object({
-  id: z.string().uuid(), taskId: z.string().max(30), workflowId: z.string().max(100),
+  id: z.string().uuid(), taskId: z.string().max(100), workflowId: z.string().max(100),
   workflowConfigId: z.string().uuid(), accountId: z.string().uuid(), projectId: z.string().uuid(), draftId: z.string().uuid(),
+  provider: z.enum(['runninghub', 'comfyui']).optional(), sourceName: z.string().max(100).optional(),
   capabilities: z.object({ status: z.enum(['checking', 'ready', 'failed']), sampling: z.boolean().nullable(),
     draft: z.boolean().nullable(), final: z.boolean().nullable(), combat: z.boolean().optional(), unclassifiedOutputs: z.number().int().nonnegative() }),
   connection: z.enum(['connecting', 'connected', 'reconnecting', 'disconnected', 'completed']),
@@ -110,7 +113,7 @@ export type PreviewEvent =
   | { type: 'media'; id: string; kind: PreviewKind; media: PreviewMedia }
 
 export const previewActionSchema = z.object({ id: z.string().uuid() })
-export const releaseReservationSchema = z.object({ id: z.string().uuid(), expectedTaskId: z.string().regex(/^\d{8,30}$/), confirmed: z.literal(true) })
+export const releaseReservationSchema = z.object({ id: z.string().uuid(), expectedTaskId: z.union([z.string().regex(/^\d{8,30}$/), z.string().uuid()]), confirmed: z.literal(true) })
 export const downloadPreviewSchema = z.object({ id: z.string().uuid(), kind: z.enum(['sampling', 'draft', 'final']) })
 export const refreshGenerationResultsSchema = z.object({ id: z.string().uuid(), workflowUnchangedConfirmed: z.boolean() })
 export const taskOutputActionSchema = z.object({ id: z.string().uuid(), index: z.number().int().min(0).max(99), action: z.enum(['copy', 'download']) })

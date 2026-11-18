@@ -27,6 +27,9 @@ export const saveWorkflowSchema = z.object({
 export const inspectWorkflowSchema = z.object({ id: z.string().uuid() })
 export type SaveWorkflow = z.input<typeof saveWorkflowSchema>
 export interface Workflow {
+  provider?: 'runninghub' | 'comfyui'
+  sourceId?: string
+  sourceName?: string
   id: string; accountId: string | null; name: string; workflowId: string; enabled: boolean; isDefault: boolean
   capabilities: PreviewCapabilities | null; checkedAt: string | null; error: string
   kind?: WorkflowKind

@@ -23,6 +23,7 @@ export class WorkflowRunService {
     this.repository.save({ ...run, hiddenAt: new Date().toISOString() })
   }
   hasPending(accountId?: string, workflowId?: string) { return this.list(workflowId).some((run) => (!accountId || run.accountId === accountId) && pending(run)) }
+  hasUnarchivedLocal(accountId: string): boolean { return this.list().some((run) => run.provider === 'comfyui' && run.accountId === accountId && ['downloading', 'download-error'].includes(run.status)) }
   hasActivity() { return this.active.size > 0 }
   stop(): void { this.stopped = true }
   canMonitor(): boolean { return !this.stopped && !this.paused }
@@ -54,6 +55,7 @@ export class WorkflowRunService {
     for (const field of workflow.application?.fields ?? []) if (field.visibility === 'fixed') values[field.key] = field.defaultValue
     const now = new Date().toISOString()
     const run: WorkflowRun = { id: input.requestId, workflowId: workflow.id, workflowName: workflow.name, accountId: workflow.accountId, kind: workflow.kind,
+      ...(workflow.provider === 'comfyui' ? { provider: 'comfyui' as const, sourceName: workflow.sourceName } : {}),
       taskId: '', status: 'preparing', createdAt: now, updatedAt: now, message: '正在检查输入及账号容量', assets: [], input: { values: structuredClone(values), instance: input.instance, fields: structuredClone(workflow.form.fields) } }
     this.repository.save(run)
     this.active.add(run.id)
@@ -61,6 +63,7 @@ export class WorkflowRunService {
       await this.context.assertCapacity(run.accountId, run.id)
       if (this.stopped || this.paused) throw new Error('提交已停止，未创建任务')
       const execution = await this.context.prepare(workflow, values)
+      if (execution.sourceAddress) run.sourceAddress = execution.sourceAddress
       if (JSON.stringify(execution.form.fields) !== JSON.stringify(workflow.form.fields)) throw new Error('线上输入已更新，请重新检测后填写')
       const current = this.context.workflow(workflow.id)
       if (current.checkedAt !== workflow.checkedAt || current.application?.updatedAt !== workflow.application?.updatedAt || current.error || !current.enabled) throw new Error('工作流配置已变化，请重新打开后运行')
@@ -79,7 +82,7 @@ export class WorkflowRunService {
   async refresh(id: string): Promise<WorkflowRun> {
     const run = this.list().find((item) => item.id === id)
     if (!run) throw new Error('运行记录不存在')
-    if (this.stopped || this.paused || !run.taskId || (run.status === 'success' || run.status === 'failed') && run.metricsCheckedAt && run.points != null && run.executionSeconds != null || this.active.has(id)) return run
+    if (this.stopped || this.paused || !run.taskId || (run.status === 'success' || run.status === 'failed') && (run.provider === 'comfyui' || run.metricsCheckedAt && run.points != null && run.executionSeconds != null) || this.active.has(id)) return run
     this.active.add(id)
     try {
       const result = await this.context.query(run)

@@ -13,8 +13,8 @@ import { useWorkbenchUi } from '../workbench-store'
 const labels: Record<PreviewKind, string> = { sampling: '实时采样', draft: '低清预览', final: '最终成片' }
 
 function capabilityLabel(preview: PreviewSnapshot, kind: PreviewKind): string {
-  if (preview.capabilities.status === 'checking') return '正在读取线上工作流'
-  if (preview.capabilities.status === 'failed') return '线上工作流预览能力未确认'
+  if (preview.capabilities.status === 'checking') return preview.provider === 'comfyui' ? '本地工作流未保存预览能力，等待实际事件' : '正在读取线上工作流'
+  if (preview.capabilities.status === 'failed') return '工作流预览能力未确认'
   if (!preview.capabilities[kind]) return kind === 'sampling' ? '未检测到采样预览节点' : `未识别${labels[kind]}节点`
   if (kind === 'sampling' && ['success', 'failed', 'cancelled'].includes(preview.remoteStatus)) return '本次未收到采样预览，无法在结束后补回'
   return `等待${labels[kind]}`
@@ -59,7 +59,8 @@ function PreviewSlot({ preview, kind, onNotice }: Pick<PreviewPanelProps, 'previ
   const remoteMedia = preview?.[kind] ?? null
   const archive = kind === 'final' && preview?.finalArchive?.source === remoteMedia?.source ? preview?.finalArchive : undefined
   const localAssetId = archive?.status === 'ready' ? archive.assetId : undefined
-  const media = useMemo(() => remoteMedia && localAssetId ? { ...remoteMedia, source: `workbench-asset://library/${localAssetId}` } : remoteMedia, [remoteMedia, localAssetId])
+  const media = useMemo(() => remoteMedia && localAssetId ? { ...remoteMedia, source: `workbench-asset://library/${localAssetId}` }
+    : preview?.provider === 'comfyui' && remoteMedia && /^https?:/.test(remoteMedia.source) ? null : remoteMedia, [remoteMedia, localAssetId, preview?.provider])
   const [downloading, setDownloading] = useState(false)
   const [duration, setDuration] = useState<{ source: string; seconds: number } | null>(null)
   const seconds = media && duration?.source === media.source ? duration.seconds : null

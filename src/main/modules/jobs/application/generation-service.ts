@@ -203,7 +203,7 @@ export class GenerationService {
 
   private archiveFinal(job: GenerationRecord): void {
     const media = job.preview.final
-    if (this.stopped || this.snapshotPaused || !this.finalArchive || !media || media.mime !== 'video/mp4' || !media.source.startsWith('https:') || this.archiving.has(job.id) || this.archiveTimers.has(job.id)) return
+    if (this.stopped || this.snapshotPaused || !this.finalArchive || !media || media.mime !== 'video/mp4' || !/^https?:/.test(media.source) || this.archiving.has(job.id) || this.archiveTimers.has(job.id)) return
     const previous = job.preview.finalArchive
     if (previous?.source === media.source && (previous.status === 'ready' || previous.attempts >= 3)) return
     const controller = new AbortController()
@@ -395,7 +395,7 @@ export class GenerationService {
         this.listen(job)
       } else {
         job.phase = 'uncertain'
-        job.preview = { ...job.preview, connection: 'disconnected', stage: '提交受理待核对', notice: '应用在提交期间退出，不能确认是否扣费；请到 RunningHub 核对，禁止自动重提或换账号' }
+        job.preview = { ...job.preview, connection: 'disconnected', stage: '提交受理待核对', notice: '应用在提交期间退出，不能确认是否扣费；请到原生成服务核对，禁止自动重提或切换来源' }
         this.publish(job)
       }
     }
@@ -424,12 +424,12 @@ export class GenerationService {
     try {
       const credential = this.context.credential(original.preview.accountId)
       // 仅在用户确认线上工作流未变更时重建历史角色；不修改原任务或调用 create。
-      const definition = workflowUnchangedConfirmed
+      const definition = workflowUnchangedConfirmed && original.preview.provider !== 'comfyui'
         ? await this.gateway.inspectPreview(original.preview.workflowId, credential) : original.previewDefinition
       if (this.stopped) throw new Error('应用正在退出，结果获取已停止')
       const job = this.repository.list().find((item) => item.id === id)
       if (!job || job.preview.taskId !== original.preview.taskId || !terminal(job.preview)) throw new Error('任务记录已变化，请重新载入')
-      if (workflowUnchangedConfirmed) {
+      if (workflowUnchangedConfirmed && original.preview.provider !== 'comfyui') {
         job.previewDefinition = definition
         job.previewDefinitionRecoveredAt = new Date().toISOString()
       }
@@ -453,6 +453,13 @@ export class GenerationService {
     const replacements = this.confirmedReplacements(input)
     this.schedulingDrafts.add(input.draftId)
     try {
+      const draft = await this.context.draft(input.projectId, input.draftId, input.expectedRevision)
+      const target = this.context.resolveTarget?.(draft.resolution, input.target ?? draft.generationTarget, input.routingRevision) ?? input.target
+      if (target?.kind === 'comfyui' || target?.kind === 'rh' && target.workflowConfigId) {
+        const id = target.kind === 'comfyui' ? target.workflowId ?? target.sourceId : target.workflowConfigId!
+        const workflow = this.context.workflow(id)
+        return await this.submit({ ...input, workflowConfigId: id, expectedAccountId: workflow.accountId, expectedWorkflowId: workflow.workflowId })
+      }
       const routes = this.context.routes?.() ?? []
       const blocked: string[] = []
       for (const route of routes) {
@@ -490,10 +497,10 @@ export class GenerationService {
     }
     const workflow = this.context.workflow(input.workflowConfigId)
     if (workflow.accountId !== input.expectedAccountId || workflow.workflowId !== input.expectedWorkflowId) throw new Error('工作流归属或线上 ID 已变化，请重新选择并确认')
-    if (this.busyAccounts.has(workflow.accountId)) throw new Error('该账号正在准备另一笔提交，请稍后再试')
+    if (workflow.provider !== 'comfyui' && this.busyAccounts.has(workflow.accountId)) throw new Error('该账号正在准备另一笔提交，请稍后再试')
     if (this.busyDrafts.has(input.draftId)) throw new Error('该草稿已有未完成的提交，请稍候')
     const replacements = this.confirmedReplacements(input)
-    this.busyAccounts.add(workflow.accountId)
+    if (workflow.provider !== 'comfyui') this.busyAccounts.add(workflow.accountId)
     this.busyDrafts.add(input.draftId)
     let job: GenerationRecord | undefined
     try {
@@ -512,6 +519,7 @@ export class GenerationService {
         references: media.map((item) => item.reference), previewDefinition: null,
         ...(replacements.size ? { replacedTaskIds: [...replacements], regenerationConfirmedAt: new Date().toISOString() } : {}),
         preview: { id: input.requestId, taskId: '', workflowId: workflow.workflowId, workflowConfigId: input.workflowConfigId, accountId: workflow.accountId,
+          provider: workflow.provider ?? 'runninghub', ...(workflow.sourceName ? { sourceName: workflow.sourceName } : {}),
           projectId: input.projectId, draftId: input.draftId, connection: 'connecting', remoteStatus: 'unknown', stage: '正在校验线上工作流与账号容量',
           requestedDuration: draft.duration,
           capabilities: { status: 'checking', sampling: null, draft: null, final: null, unclassifiedOutputs: 0 },
@@ -522,6 +530,7 @@ export class GenerationService {
       // 手动重生成仅忽略已确认旧记录的本地预留，平台实际占用仍必须通过容量检查。
       const blocked = this.capacityBlock(workflow.accountId, capacity, replacements, job.id)
       if (blocked) throw new Error(blocked)
+      this.context.resolveTarget?.(draft.resolution, input.target ?? draft.generationTarget, input.routingRevision)
       const plan = await this.gateway.prepare(workflow.workflowId, credential, draft)
       job.previewDefinition = plan.previewDefinition
       const uploaded: { reference: typeof media[number]['reference']; filename: string }[] = []
@@ -536,9 +545,10 @@ export class GenerationService {
       const latestBlocked = this.capacityBlock(workflow.accountId, latestCapacity, replacements, job.id)
       if (latestBlocked) throw new Error(`上传期间账号容量已变化，未发起生成：${latestBlocked}`)
       if (this.stopped) throw new Error('应用退出，未提交生成')
+      this.context.resolveTarget?.(draft.resolution, input.target ?? draft.generationTarget, input.routingRevision)
       job.phase = 'submitting'
       job.preview.submittedAt = new Date().toISOString()
-      job.preview.stage = '正在提交付费生成，请勿重复操作'
+      job.preview.stage = workflow.provider === 'comfyui' ? '正在提交到指定 ComfyUI 队列，请勿重复操作' : '正在提交付费生成，请勿重复操作'
       this.publish(job)
       // create 只调用一次；超时、解析失败及断网均保留受理不明，不自动重试。
       const taskId = await plan.create(uploaded)
@@ -553,7 +563,7 @@ export class GenerationService {
         job.phase = uncertain ? 'uncertain' : 'rejected'
         job.preview = { ...job.preview, remoteStatus: uncertain ? 'unknown' : 'failed', connection: uncertain ? 'disconnected' : 'completed',
           stage: uncertain ? '提交受理待核对' : error instanceof GenerationRejectedError ? '平台明确拒绝创建任务' : '提交前失败，未发起生成', notice: uncertain
-            ? '无法确认平台是否已受理，请到 RunningHub 核对；本任务不会自动重提或切换账号'
+            ? `无法确认服务是否已受理，请到${workflow.provider === 'comfyui' ? '指定 ComfyUI' : ' RunningHub'}核对；本任务不会自动重提或切换来源`
             : error instanceof Error ? error.message : '生成准备失败' }
         this.publish(job)
         return job.preview

@@ -26,7 +26,7 @@ export function WorkflowInputs({ workflow, initial, blocked = false, onBusy, onR
   const [baseline, setBaseline] = useState(() => state)
   useEffect(() => { onDirty?.(state !== baseline) }, [state, baseline, onDirty])
   useEffect(() => { onBusy?.(busy); return () => onBusy?.(false) }, [busy, onBusy])
-  if (!workflow.form?.fields.length) return <p className="muted">尚未识别到可编辑输入，请先检测线上工作流。</p>
+  if (!workflow.form?.fields.length) return <p className="muted">尚未识别到可编辑输入，请先点击“重新检测”识别此工作流。</p>
   const configured = workflow.application?.fields ?? workflow.form.fields.map((field): WorkflowApplication['fields'][number] => ({
     key: field.key, label: field.title, visibility: 'advanced', control: field.type === 'text' ? 'singleline' : 'native', defaultValue: field.defaultValue
   }))
@@ -72,7 +72,7 @@ export function WorkflowInputs({ workflow, initial, blocked = false, onBusy, onR
   }}>{initial?.warnings.length ? <div className="field-error" role="alert">{initial.warnings.map((warning) => <p key={warning}>{warning}</p>)}</div> : null}{legacyFields && <p className="field-error" role="alert">字段识别已升级，请先点击“重新检测”，再复核应用配置。</p>}<fieldset disabled={blocked || busy || legacyFields || workflow.application?.needsReview}>
     {configured.filter((field) => field.visibility === 'common').map(renderField)}
     {advanced.length > 0 && <details className="workflow-advanced"><summary>高级设置 <span className="muted">{advanced.length} 项</span></summary><div className="workflow-advanced-fields">{advanced.map(renderField)}</div></details>}
-    {onRun && <div className="workflow-run-actions"><label className="workflow-instance">运行实例<SelectField aria-label="运行实例" value={instance} onChange={(event) => setInstance(event.target.value as StartWorkflowRun['instance'])}><SelectOption value="default">Lite</SelectOption><SelectOption value="plus">Plus</SelectOption><SelectOption value="ultra">Ultra</SelectOption></SelectField></label>
+    {onRun && <div className="workflow-run-actions">{workflow.provider === 'comfyui' ? <span className="muted">ComfyUI · {workflow.sourceName} · 在指定实例排队</span> : <label className="workflow-instance">运行实例<SelectField aria-label="运行实例" value={instance} onChange={(event) => setInstance(event.target.value as StartWorkflowRun['instance'])}><SelectOption value="default">Lite</SelectOption><SelectOption value="plus">Plus</SelectOption><SelectOption value="ultra">Ultra</SelectOption></SelectField></label>}
       <Button type="submit" disabled={!workflow.enabled || Boolean(workflow.error)}>{busy ? '处理中' : '确认并运行'}</Button></div>}
   </fieldset>{error && <p className="field-error" role="alert">{error}</p>}{!onRun && <p className="muted">当前为输入表单预览，不会提交生成。</p>}</form>
     {voiceField && onChooseVoice && <VoicePicker onClose={() => setVoiceField(null)} onPick={async (id) => { bind(voiceField, await onChooseVoice(id)) }} />}

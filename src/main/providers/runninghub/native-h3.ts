@@ -66,7 +66,7 @@ export function prepareNativeH3Graph(graph: Graph, nodeId: string, draft: VideoD
   }
   const ratios = { '16:9': '16:9 (Widescreen)', '9:16': '9:16 (Portrait Widescreen)', '1:1': '1:1 (Square)' }
   canvas.inputs.aspect_ratio = ratios[draft.aspectRatio]
-  canvas.inputs.megapixels = draft.resolution === '720P' ? 0.9 : 2.0
+  canvas.inputs.megapixels = draft.resolution === '480P' ? 0.4 : draft.resolution === '720P' ? 0.9 : 2.0
   node.inputs.prompt = draft.prompt
   // 原生 H3 使用 24 fps 与 17n+5 帧格点；直接写入数值，不执行模板数学表达式。
   node.inputs.length = Math.ceil((draft.duration * 24 - 5) / 17) * 17 + 5

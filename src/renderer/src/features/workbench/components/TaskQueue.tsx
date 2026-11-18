@@ -34,7 +34,7 @@ export function TaskQueue({ tasks, projects, actions, loading, error, onReload, 
   const selectable = visible.filter((task) => task.taskId && !['success', 'failed', 'cancelled'].includes(queueStatus(task)))
   const chosen = selectable.filter((task) => batch.selected.includes(task.id))
   async function cancel(task: PreviewSnapshot) {
-    if (!(await confirmAction('向原账户请求取消此远端任务？取消不保证退款，也不会立即确认终止。'))) return
+    if (!(await confirmAction(task.provider === 'comfyui' ? '终止指定 ComfyUI 任务？运行项请求中断，等待项移出队列。' : '向原账户请求取消此远端任务？取消不保证退款，也不会立即确认终止。'))) return
     setPending(task.id)
     try { unwrap(await desktop().cancelTask(task.id)); onNotice('取消请求已发送，继续核对远端状态') }
     catch (error) { onNotice(error instanceof Error ? error.message : '取消失败') }
@@ -44,7 +44,7 @@ export function TaskQueue({ tasks, projects, actions, loading, error, onReload, 
     if (!(await confirmAction('仅重新获取已有任务结果，不重新生成、不新增生成费用。将按当前线上工作流补回输出角色，请确认该工作流从提交以来未被修改。'))) return
     setPending(task.id)
     try {
-      unwrap(await desktop().refreshGenerationResults(task.id, true))
+      unwrap(await desktop().refreshGenerationResults(task.id, task.provider !== 'comfyui'))
       onReload()
       onNotice('正在重新获取已有结果，不会重新生成')
     } catch (error) { onNotice(error instanceof Error ? error.message : '结果获取失败') }
@@ -83,7 +83,7 @@ export function TaskQueue({ tasks, projects, actions, loading, error, onReload, 
         const project = projects.find((item) => item.id === task.projectId)
         const draft = project?.videoDrafts.find((item) => item.id === task.draftId)
         const terminal = ['success', 'failed', 'cancelled'].includes(queueStatus(task))
-        return <TableRow key={task.id}><TableCell className="queue-selection"><CheckboxField aria-label={`选择任务 ${task.taskId || task.id}`} disabled={actionBusy || terminal || !task.taskId} checked={chosen.some((item) => item.id === task.id)} onChange={(event) => batch.setSelected((current) => event.target.checked ? [...current, task.id] : current.filter((id) => id !== task.id))} /></TableCell><TableCell className="task-id" title={task.taskId || task.id}>{task.taskId || '尚未取得远端 ID'}</TableCell><TableCell title={`${project?.name ?? '项目不可用'} / ${draft?.title ?? '草稿不可用'}`}>{draft?.title ?? '草稿不可用'}<small className="queue-project-name">{project?.name ?? '项目不可用'}</small></TableCell>
+        return <TableRow key={task.id}><TableCell className="queue-selection"><CheckboxField aria-label={`选择任务 ${task.taskId || task.id}`} disabled={actionBusy || terminal || !task.taskId} checked={chosen.some((item) => item.id === task.id)} onChange={(event) => batch.setSelected((current) => event.target.checked ? [...current, task.id] : current.filter((id) => id !== task.id))} /></TableCell><TableCell className="task-id" title={task.taskId || task.id}>{task.taskId || '尚未取得远端 ID'}<small>{task.provider === 'comfyui' ? `ComfyUI · ${task.sourceName ?? '本地来源'}` : 'RunningHub'}</small></TableCell><TableCell title={`${project?.name ?? '项目不可用'} / ${draft?.title ?? '草稿不可用'}`}>{draft?.title ?? '草稿不可用'}<small className="queue-project-name">{project?.name ?? '项目不可用'}</small></TableCell>
           <TableCell className="queue-duration-cell"><TaskDuration task={task} /></TableCell>
           <TableCell className="queue-status-cell"><div className="queue-status-heading"><span className={`task-status queue-status-badge status-${queueStatus(task)}`}>{task.manualCancellationConfirmedAt && task.remoteStatus !== 'success' && task.remoteStatus !== 'failed' ? '已取消·人工确认' : !terminal && task.cancelState === 'requested' ? '取消已受理·待确认' : statusLabels[task.remoteStatus]}</span>
             {(task.notice || task.stage || task.manualCancellationConfirmedAt || task.localReservationReleasedAt || task.cancelState !== 'none') && <details className="queue-status-details"><summary>详情</summary>

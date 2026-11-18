@@ -1,11 +1,12 @@
 import { z } from 'zod'
+import { generationTargetSchema } from './generation-sources'
 import { validPromptDocument } from './prompt-document'
 
 export const generationTimingSampleSchema = z.object({
   workflowLabel: z.string().trim().min(1).max(100),
   duration: z.number().int().min(4).max(15),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
-  resolution: z.enum(['720P', '1080P']),
+  resolution: z.enum(['480P', '720P', '1080P']),
   instance: z.enum(['default', 'plus', 'ultra']),
   images: z.number().int().min(0).max(9),
   videos: z.number().int().min(0).max(3),
@@ -17,6 +18,7 @@ export const generationTimingSampleSchema = z.object({
 export type GenerationTimingSample = z.infer<typeof generationTimingSampleSchema>
 
 export const videoDraftSchema = z.object({
+  generationTarget: generationTargetSchema.optional(),
   id: z.string().uuid(),
   groupId: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(100),
@@ -25,7 +27,7 @@ export const videoDraftSchema = z.object({
   promptDocument: z.string().max(200000).refine(validPromptDocument, '富文本草稿格式不正确'),
   duration: z.number().int().min(4).max(15),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
-  resolution: z.enum(['720P', '1080P']),
+  resolution: z.enum(['480P', '720P', '1080P']),
   instance: z.enum(['default', 'plus', 'ultra']),
   instanceMode: z.enum(['auto', 'manual']).default('manual'),
   combatEnabled: z.boolean().optional(),

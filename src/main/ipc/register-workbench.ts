@@ -5,10 +5,12 @@ import type { VoiceService } from '../modules/voices'
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { writeFile } from 'node:fs/promises'
+import { writeFile, readFile, stat } from 'node:fs/promises'
+import { generationTargetSchema } from '../../shared/contracts/generation-sources'
+import type { GenerationSourcesService } from '../modules/generation-sources'
 import { z } from 'zod'
 import { downloadPreviewSchema, previewActionSchema, refreshGenerationResultsSchema, taskOutputActionSchema, releaseReservationSchema } from '../../shared/contracts/preview'
-import type { PreviewMedia } from '../../shared/contracts/preview'
+import type { PreviewMedia, PreviewSnapshot } from '../../shared/contracts/preview'
 import { copyVideoDraftSchema, deleteWorkspaceEntitySchema, saveWorkspaceSchema } from '../../shared/contracts/workspace'
 import type { Result } from '../../shared/contracts/desktop'
 import type { WorkspaceService } from '../application/workspace-service'
@@ -51,9 +53,9 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
   accounts: AccountService, workflows: WorkflowService, references: ReferenceService, library: LibraryService, mcp: AssetMcpServer,
   extensions: ExtensionService, production: ProductionService, generation: GenerationService,
   prepareDownload: (media: PreviewMedia) => PreviewMedia = (media) => media,
-  readTaskDiagnostics: (id: string) => string = () => { throw new Error('任务日志尚未配置') },
+  readTaskDiagnostics: (task: PreviewSnapshot) => string = () => { throw new Error('任务日志尚未配置') },
   personalLibrary?: { library: ScriptLibraryService; settings: SettingsService; pages: ExtensionPageService; assembly?: AssemblyService; assemblyExport?: AssemblyExportService; assemblyRenderer?: (ffmpeg: string, ffprobe: string) => AssemblyRenderer;
-    runs?: WorkflowRunService; voices?: VoiceService; mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost; closePrompts?: WindowClosePromptHost }): void {
+    sources?: GenerationSourcesService; runs?: WorkflowRunService; voices?: VoiceService; mediaEngine?: MediaEngine; migration?: MigrationService; skills?: BuiltinSkillService; images?: ImageGenerationService; assemblyWindows?: AssemblyWindowHost; workbenchWindows?: WorkbenchWindowHost; closePrompts?: WindowClosePromptHost }): void {
   const handle = <T>(channel: string, action: (input: unknown, window: BrowserWindow) => Promise<T>) => {
     ipcMain.handle(channel, async (event, input: unknown): Promise<Result<T>> => {
       const window = BrowserWindow.fromWebContents(event.sender)
@@ -69,6 +71,29 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
         // 不向 renderer 返回网络异常、URL 或凭据；业务异常仅使用本地固定提示。
         return { ok: false, error: error instanceof Error && !/fetch|https?:|wss?:/i.test(error.message) ? error.message : '操作未完成，请稍后重试' }
       }
+    })
+  }
+  if (personalLibrary?.sources) {
+    const sources = personalLibrary.sources
+    handle('generation-sources:resolve', async (input) => {
+      const parsed = z.object({ resolution: z.enum(['480P', '720P', '1080P']), target: generationTargetSchema.optional() }).parse(input)
+      const target = sources.resolve(parsed.resolution, parsed.target)
+      const name = target.kind === 'comfyui' ? `ComfyUI · ${sources.get(target.sourceId).name} · ${sources.videoWorkflow(target.sourceId, target.workflowId).workflow.name}` : target.workflowConfigId ? `RH · ${workflows.get(target.workflowConfigId).name}` : 'RH · 自动选择启用账号及其默认工作流'
+      const revision = sources.list().revision
+      const comfyBusy = !parsed.target && target.kind === 'comfyui' ? await sources.hasRunningTasks(target.sourceId) : undefined
+      return { target, name, revision, comfyBusy }
+    })
+    handle('generation-sources:list', async () => sources.list())
+    handle('generation-sources:save', async (input) => sources.save(input))
+    handle('generation-sources:test', (input) => sources.inspect(input))
+    handle('generation-sources:import-workflow', async (_input, window) => {
+      const selected = await dialog.showOpenDialog(window, { title: '导入 ComfyUI API 格式工作流', properties: ['openFile'], filters: [{ name: 'JSON 工作流', extensions: ['json'] }] })
+      const path = selected.filePaths[0]
+      if (selected.canceled || !path) return null
+      const info = await stat(path)
+      if (!info.isFile() || info.size > 2 * 1024 * 1024) throw new Error('工作流文件超过 2MB 或无效')
+      const json = await readFile(path, 'utf8')
+      return sources.validateImport(json)
     })
   }
   if (personalLibrary?.runs) registerWorkflowRuns(handle, personalLibrary.runs, workflows, library)
@@ -155,7 +180,8 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
     const { id } = inspectWorkflowSchema.parse(input)
     const workflow = workflows.get(id)
     if (!workflow.accountId) throw new Error('请先为工作流配置所属账号')
-    return workflows.inspect(id, accounts.credential(workflow.accountId))
+    if (personalLibrary?.runs?.hasPending(undefined, id)) throw new Error('该工作流有未结束任务，暂不能更新检测配置')
+    return workflows.inspect(id, workflow.provider === 'comfyui' ? '' : accounts.credential(workflow.accountId))
   })
   const savedDraft = async (id: string) => {
     const current = await workspace.load()
@@ -229,7 +255,7 @@ export function registerWorkbench(workspace: WorkspaceService, previews: Preview
     const { id } = previewActionSchema.parse(input)
     const task = generation.list().find((item) => item.id === id)
     if (!task) throw new Error('任务记录不存在')
-    const content = readTaskDiagnostics(id)
+    const content = readTaskDiagnostics(task)
     const selected = await dialog.showSaveDialog(window, { title: '导出任务诊断日志', defaultPath: `video-task-${task.taskId || id}.jsonl`,
       filters: [{ name: 'JSON Lines 日志', extensions: ['jsonl'] }] })
     if (selected.canceled || !selected.filePath) return false

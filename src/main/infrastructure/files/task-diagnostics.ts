@@ -23,7 +23,7 @@ export class TaskDiagnostics {
     } catch { this.writeFailed = true }
   }
 
-  read(id: string): string {
+  read(id: string, snapshot?: Omit<TaskDiagnostic, 'id'>): string {
     if (this.writeFailed) throw new Error('任务日志写入失败，请检查磁盘空间与目录权限')
     const lines: string[] = []
     for (const name of ['video-tasks.previous.jsonl', 'video-tasks.jsonl']) {
@@ -36,6 +36,9 @@ export class TaskDiagnostics {
           if (parsed.success && parsed.data.id === id) lines.push(JSON.stringify(parsed.data))
         } catch { /* 忽略中断写入的残缺行，不导出未经校验内容。 */ }
       }
+    }
+    if (!lines.length && snapshot) {
+      lines.push(JSON.stringify(storedTaskDiagnosticSchema.parse({ ...snapshot, id, at: new Date().toISOString() })))
     }
     if (!lines.length) throw new Error('该任务暂无诊断日志，请先重新获取平台结果；历史日志无法补回')
     return `${lines.join('\n')}\n`

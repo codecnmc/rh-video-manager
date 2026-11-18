@@ -108,7 +108,7 @@ export function prepareH3Graph(response: unknown, draft: VideoDraft): { graph: G
     if (candidate.class_type !== 'ResolutionSelector') continue
     if (typeof candidate.inputs.aspect_ratio !== 'string' || typeof candidate.inputs.megapixels !== 'number') throw new Error('线上二采画布参数存在外部连接，当前不能覆盖')
     candidate.inputs.aspect_ratio = ratios[draft.aspectRatio]
-    candidate.inputs.megapixels = draft.resolution === '720P' ? 0.9 : 2.0
+    candidate.inputs.megapixels = draft.resolution === '480P' ? 0.4 : draft.resolution === '720P' ? 0.9 : 2.0
   }
   const previewDefinition = JSON.stringify(inspectWorkflowPreview({ code: 0, data: { prompt: JSON.stringify(graph) } }))
   return { graph, nodeId, previewDefinition }

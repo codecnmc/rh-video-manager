@@ -7,7 +7,8 @@ const limit = 512 * 1024 * 1024
 export function finalVideoAssetId(jobId: string, source: string): string {
   const url = new URL(source)
   // 签名刷新不产生重复素材；不同输出路径仍保留为不同成片。
-  const bytes = createHash('sha256').update(`${jobId}\n${url.origin}${url.pathname}`).digest().subarray(0, 16)
+  const output = url.searchParams.has('filename') ? `?${new URLSearchParams({ filename: url.searchParams.get('filename') ?? '', subfolder: url.searchParams.get('subfolder') ?? '', type: url.searchParams.get('type') ?? '' })}` : ''
+  const bytes = createHash('sha256').update(`${jobId}\n${url.origin}${url.pathname}${output}`).digest().subarray(0, 16)
   bytes[6] = (bytes[6]! & 15) | 80
   bytes[8] = (bytes[8]! & 63) | 128
   const hex = bytes.toString('hex')

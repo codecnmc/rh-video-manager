@@ -6,6 +6,11 @@ import { assemblyExportProgressSchema } from '../shared/contracts/assembly-expor
 import { windowClosePromptSchema } from '../shared/contracts/window-close'
 
 const api: DesktopApi = {
+  resolveGenerationTarget: (input) => ipcRenderer.invoke('generation-sources:resolve', input),
+  generationSources: () => ipcRenderer.invoke('generation-sources:list'),
+  saveGenerationSources: (input) => ipcRenderer.invoke('generation-sources:save', input),
+  testComfySource: (input) => ipcRenderer.invoke('generation-sources:test', input),
+  importComfyWorkflow: () => ipcRenderer.invoke('generation-sources:import-workflow'),
   previewDialog: (kind) => ipcRenderer.invoke('window:preview-dialog', kind),
   copyVoiceReferenceText: () => ipcRenderer.invoke('workflow-runs:copy-voice-reference'),
   listWorkflowRuns: (workflowId) => ipcRenderer.invoke('workflow-runs:list', { workflowId }),

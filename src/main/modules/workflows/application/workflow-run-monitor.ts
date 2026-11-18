@@ -21,7 +21,7 @@ export class WorkflowRunMonitor {
   private tick(): void {
     if (this.stopped) return
     for (const run of this.runs.canMonitor?.() === false ? [] : this.runs.list()) {
-      const missingMetrics = ['success', 'failed'].includes(run.status) && (!run.metricsCheckedAt || run.points == null || run.executionSeconds == null)
+      const missingMetrics = run.provider !== 'comfyui' && ['success', 'failed'].includes(run.status) && (!run.metricsCheckedAt || run.points == null || run.executionSeconds == null)
       if (!run.taskId || !missingMetrics && !['running', 'unknown', 'download-error'].includes(run.status) || this.active.has(run.id)) continue
       const retry = this.retry.get(run.id)
       // 只查询已有远端任务。保存失败最多自动重试三次，绝不调用创建或重新生成。

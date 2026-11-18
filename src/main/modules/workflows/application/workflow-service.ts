@@ -1,17 +1,17 @@
 import { saveWorkflowApplicationSchema, type SaveWorkflowApplication, type SaveWorkflow, type Workflow, type WorkflowTemplate } from '../../../../shared/contracts/workflows'
 import { reconcileWorkflowApplication, suggestWorkflowApplication } from './workflow-application'
-import type { WorkflowGateway, WorkflowRepository } from '../ports/workflows'
+import type { WorkflowGateway, WorkflowRepository, LocalWorkflowCatalog } from '../ports/workflows'
 import { WorkflowInspectionError } from '../ports/workflows'
 
 export class WorkflowService {
   constructor(private readonly repository: WorkflowRepository, private readonly gateway: WorkflowGateway, private readonly id: () => string,
-    _legacyTemplateContent = '', private readonly acceleratedTemplateContent = '', private readonly additionalTemplates: Partial<Record<WorkflowTemplate, string>> = {}) {}
+    _legacyTemplateContent = '', private readonly acceleratedTemplateContent = '', private readonly additionalTemplates: Partial<Record<WorkflowTemplate, string>> = {}, private readonly local?: LocalWorkflowCatalog) {}
   exportTemplate(template: WorkflowTemplate = 'accelerated'): string {
     const content = template === 'accelerated' ? this.acceleratedTemplateContent : this.additionalTemplates[template]
     if (!content) throw new Error('工作流模板尚未配置')
     return content
   }
-  list(): Workflow[] { return this.repository.list().map((workflow) => ({ ...workflow,
+  list(): Workflow[] { return [...this.repository.list(), ...(this.local?.listWorkflows() ?? [])].map((workflow) => ({ ...workflow,
     application: workflow.application ?? (workflow.form ? suggestWorkflowApplication(workflow.form) : null) })) }
   get(id: string): Workflow {
     const workflow = this.list().find((entry) => entry.id === id)
@@ -28,6 +28,7 @@ export class WorkflowService {
   save(input: SaveWorkflow): Workflow[] {
     if (input.kind === 'image') throw new Error('图片工作流模式已停用，原配置和历史记录保留')
     const existing = input.id ? this.get(input.id) : null
+    if (existing?.provider === 'comfyui') throw new Error('请在生成来源中编辑本地工作流')
     if (this.list().some((entry) => entry.id !== input.id && entry.accountId === input.accountId && entry.workflowId === input.workflowId)) throw new Error('该账号的工作流 ID 已存在')
     const unchanged = existing?.workflowId === input.workflowId && existing.accountId === input.accountId && (existing.kind ?? 'video') === (input.kind ?? 'video')
     this.repository.save({ application: unchanged ? existing?.application ?? null : null, kind: input.kind ?? 'video', form: unchanged ? existing?.form ?? null : null, id: input.id ?? this.id(), accountId: input.accountId, name: input.name, workflowId: input.workflowId,
@@ -42,10 +43,11 @@ export class WorkflowService {
     if (!previous || previous.workflowId !== input.workflowId || previous.accountId !== input.accountId || (previous.kind ?? 'video') !== (input.kind ?? 'video')) return this.inspect(workflow.id, credential)
     return saved
   }
-  remove(id: string): Workflow[] { this.get(id); this.repository.remove(id); return this.list() }
+  remove(id: string): Workflow[] { if (this.get(id).provider === 'comfyui') this.local?.removeWorkflow(id); else this.repository.remove(id); return this.list() }
   saveApplication(raw: SaveWorkflowApplication): Workflow[] {
     const input = saveWorkflowApplicationSchema.parse(raw)
     const workflow = this.get(input.id)
+    if (workflow.provider === 'comfyui') { this.local?.saveApplication(input); return this.list() }
     if (!workflow.form || workflow.kind !== 'audio' || workflow.checkedAt !== input.expectedCheckedAt || (workflow.application?.updatedAt ?? null) !== input.expectedUpdatedAt) throw new Error('工作流或应用配置已更新，请重新打开编辑')
     if (input.fields.length !== workflow.form.fields.length || new Set(input.fields.map((field) => field.key)).size !== input.fields.length) throw new Error('请配置全部输入字段且不要重复')
     for (const field of workflow.form.fields) {
@@ -61,6 +63,7 @@ export class WorkflowService {
   }
   async inspect(id: string, credential: string): Promise<Workflow[]> {
     const original = this.get(id)
+    if (original.provider === 'comfyui') { await this.local?.inspectWorkflow(id); return this.list() }
     if (original.kind === 'image') throw new Error('图片工作流模式已停用，原配置和历史记录保留')
     try {
       const video = (original.kind ?? 'video') === 'video'

@@ -10,6 +10,7 @@ export const workflowRunInputSchema = z.object({ values: startWorkflowRunSchema.
 export type WorkflowRunInput = z.infer<typeof workflowRunInputSchema>
 export const workflowRunSchema = z.object({ id: z.string().uuid(), workflowId: z.string().uuid(), workflowName: z.string(),
   accountId: z.string().uuid(), kind: z.enum(['audio', 'image']), taskId: z.string(),
+  provider: z.enum(['runninghub', 'comfyui']).optional(), sourceAddress: z.string().optional(), sourceName: z.string().optional(),
   status: z.enum(['preparing', 'submitting', 'unknown', 'running', 'downloading', 'success', 'failed', 'download-error']),
   createdAt: z.string(), updatedAt: z.string(), message: z.string(),
   input: workflowRunInputSchema.optional(),

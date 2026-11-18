@@ -1,4 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
+import { mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import type { WorkspaceRepository } from '../../application/workspace-repository'
 import { workspaceSchema, type DeleteWorkspaceEntity, type Workspace } from '../../../shared/contracts/workspace'
 import type { ProjectService } from '../../modules/projects'
@@ -15,7 +18,22 @@ export class WorkbenchDatabase {
     const schemaVersion = Number(version?.user_version ?? 0)
     if (schemaVersion > workbenchSchemaVersion) {
       this.connection.close()
-      throw new Error('数据库版本高于当前应用支持范围，未执行修改')
+      throw Object.assign(new Error('数据库版本高于当前应用支持范围，未执行修改'), {
+        code: 'DATABASE_VERSION_TOO_NEW', databaseVersion: schemaVersion, supportedVersion: workbenchSchemaVersion
+      })
+    }
+    // 升级前保存 SQLite 一致性副本（包含 WAL 中已提交的数据），不能直接复制正在使用的数据库文件。
+    // 备份失败就停止升级；不自动降级或恢复，以免覆盖新版写入的数据。
+    if (schemaVersion > 0 && schemaVersion < workbenchSchemaVersion) {
+      try {
+        const backups = join(dirname(path), 'backups')
+        mkdirSync(backups, { recursive: true })
+        const backup = join(backups, `workbench-v${schemaVersion}-before-v${workbenchSchemaVersion}-${randomUUID()}.sqlite`)
+        this.connection.prepare('VACUUM INTO ?').run(backup)
+      } catch {
+        this.connection.close()
+        throw Object.assign(new Error('数据库升级前备份失败，未执行升级'), { code: 'DATABASE_BACKUP_FAILED' })
+      }
     }
     this.connection.exec(`
       PRAGMA foreign_keys = ON;

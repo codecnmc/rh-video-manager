@@ -21,6 +21,11 @@ import type { ImageAccount, SaveImageAccount, ImageBoard, CreateImageBoard, Imag
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface DesktopApi {
+  resolveGenerationTarget(input: { resolution: '480P' | '720P' | '1080P'; target?: import('./generation-sources').GenerationTarget }): Promise<Result<{ target: import('./generation-sources').GenerationTarget; name: string; revision: number; comfyBusy?: boolean | null }>>
+  generationSources(): Promise<Result<import('./generation-sources').RoutingSettings>>
+  saveGenerationSources(input: import('./generation-sources').RoutingSettings): Promise<Result<import('./generation-sources').RoutingSettings>>
+  testComfySource(input: { address: string }): Promise<Result<import('./generation-sources').ComfyConnectionResult>>
+  importComfyWorkflow(): Promise<Result<string | null>>
   previewDialog(kind: import('./window-close').DialogPreview): Promise<Result<boolean>>
   copyVoiceReferenceText(): Promise<Result<void>>
   listWorkflowRuns(workflowId?: string): Promise<Result<WorkflowRun[]>>

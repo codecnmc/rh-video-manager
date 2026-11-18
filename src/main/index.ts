@@ -69,7 +69,15 @@ if (!app.requestSingleInstanceLock()) {
       appendFileSync(join(directory, 'startup.log'), `${new Date().toISOString()} ${startupStage} ${code}\n`, 'utf8')
       logged = true
     } catch { /* 日志目录不可写时仍给出可见提示。 */ }
-    const explanation = startupConfigurationError ? '无法读取打包数据配置，请重新解压完整的软件压缩包。'
+    // 只展示可控的本地故障说明，不将未知异常正文（可能含凭据）带入日志或对话框。
+    const databaseVersions = error instanceof Error && 'databaseVersion' in error && 'supportedVersion' in error &&
+      Number.isSafeInteger(error.databaseVersion) && Number.isSafeInteger(error.supportedVersion)
+      ? `当前数据版本：${error.databaseVersion}；此程序支持到：${error.supportedVersion}。\n\n` : ''
+    const explanation = code === 'DATABASE_VERSION_TOO_NEW'
+      ? `${databaseVersions}此旧版程序无法读取新版工作台的数据。请退出后使用升级这些数据的版本或更新版本，并完整解压软件包。\n\n素材目录迁移不会降低数据库版本。请勿修改数据库版本号；如需回退，请先保留当前数据，再使用升级前的独立备份。`
+      : code === 'DATABASE_BACKUP_FAILED'
+        ? '数据库升级前的安全备份未能完成，已停止升级。请检查数据目录所在磁盘的剩余空间和写入权限后重试。'
+      : startupConfigurationError ? '无法读取打包数据配置，请重新解压完整的软件压缩包。'
       : startupStage === 'renderer' && code === 'ERR_CONNECTION_REFUSED'
         ? '未能连接本地界面服务。\n\n请重新运行 pnpm dev，再打开工作台。此错误不代表素材目录迁移失败。'
         : startupStage === 'renderer' ? '主界面加载失败，请检查软件文件是否完整。'

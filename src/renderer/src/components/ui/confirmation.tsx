@@ -3,7 +3,7 @@ import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog'
 import { Button } from './button'
 
 interface ConfirmationOptions { title?: string; confirmLabel?: string }
-interface Confirmation extends ConfirmationOptions { message: string; resolve: (confirmed: boolean) => void; save?: () => Promise<boolean>; information?: boolean }
+interface Confirmation extends ConfirmationOptions { message: string; resolve: (confirmed: boolean) => void; save?: () => Promise<boolean>; information?: boolean; alternate?: { label: string; resolve: () => void } }
 const queue: Confirmation[] = []
 const listeners = new Set<() => void>()
 const notify = () => { for (const listener of listeners) listener() }
@@ -16,9 +16,19 @@ export function showMessage(message: string): Promise<void> {
   return new Promise((resolve) => { queue.push({ message, information: true, resolve: () => resolve() }); notify() })
 }
 
-function settle(confirmed: boolean) {
+export function confirmChoice(message: string, options: ConfirmationOptions & { alternateLabel: string }): Promise<'primary' | 'alternate' | 'cancel'> {
+  return new Promise((resolve) => {
+    queue.push({ title: options.title, confirmLabel: options.confirmLabel, message,
+      resolve: (confirmed) => resolve(confirmed ? 'primary' : 'cancel'),
+      alternate: { label: options.alternateLabel, resolve: () => resolve('alternate') } })
+    notify()
+  })
+}
+
+function settle(confirmed: boolean | 'alternate') {
   const current = queue.shift()
-  current?.resolve(confirmed)
+  if (confirmed === 'alternate') current?.alternate?.resolve()
+  else current?.resolve(confirmed)
   notify()
 }
 
@@ -38,7 +48,9 @@ export function ConfirmationHost() {
       <AlertDialogPrimitive.Title asChild><h2>{current.title ?? (current.information ? '操作提示' : '确认操作')}</h2></AlertDialogPrimitive.Title>
       <AlertDialogPrimitive.Description className="ui-confirmation-message">{current.message}</AlertDialogPrimitive.Description>
       {error && <p role="alert" className="field-error">{error}</p>}
-      <div className="dialog-actions">{!current.information && <Button variant="outline" disabled={saving} onClick={() => settle(false)}>取消</Button>}<Button disabled={saving} onClick={() => settle(true)}>{current.confirmLabel ?? (current.information ? '知道了' : current.save ? '放弃修改' : '确认')}</Button>
+      <div className="dialog-actions">{!current.information && <Button variant="outline" disabled={saving} onClick={() => settle(false)}>取消</Button>}
+        {current.alternate && <Button variant="outline" disabled={saving} onClick={() => settle('alternate')}>{current.alternate.label}</Button>}
+        <Button disabled={saving} onClick={() => settle(true)}>{current.confirmLabel ?? (current.information ? '知道了' : current.save ? '放弃修改' : '确认')}</Button>
         {current.save && <Button disabled={saving} onClick={async () => {
           setSaving(true); setError('')
           try {

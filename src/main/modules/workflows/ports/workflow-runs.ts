@@ -6,6 +6,7 @@ export interface WorkflowRunRepository {
   save(run: WorkflowRun): void
 }
 export interface WorkflowExecution {
+  sourceAddress?: string
   form: WorkflowFormDefinition
   submit(instance: StartWorkflowRun['instance']): Promise<string>
 }

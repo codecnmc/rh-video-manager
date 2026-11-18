@@ -1,3 +1,8 @@
+import { GenerationSourcesService, SqliteGenerationSources } from '../modules/generation-sources'
+import { ComfySourceInspector, parseComfyGraph } from '../providers/comfyui/client'
+import { ComfyGenerationGateway } from '../providers/comfyui/generation-gateway'
+import { ComfyPreviewSession } from '../providers/comfyui/preview-session'
+import { ComfyWorkflowRunner } from '../providers/comfyui/workflow-runner'
 import { WorkflowRunService, WorkflowRunMonitor } from '../modules/workflows'
 import { SqliteWorkflowRunRepository } from '../infrastructure/database/workflow-run-repository'
 import { RunningHubWorkflowRunner } from '../providers/runninghub/workflow-runner'
@@ -169,10 +174,28 @@ export async function initializeWorkbench(): Promise<void> {
       if (!window.isDestroyed()) window.webContents.send('preview:event', event)
     }
   }
-  const previews: PreviewService = new PreviewService((options) => new RunningHubPreviewSession({ ...options, diagnose: (entry) => diagnostics.append(entry) }), (event) => {
+  const comfyWorkflowRunner = new ComfyWorkflowRunner()
+  const sources = new GenerationSourcesService(new SqliteGenerationSources(database.connection), new ComfySourceInspector(), (json) => { parseComfyGraph(json) },
+    (id) => (generation?.hasPending(undefined, undefined, id) ?? false) || (workflowRuns?.hasPending(id) ?? false) || (workflowRuns?.hasUnarchivedLocal(id) ?? false),
+    (address, graph, kind) => comfyWorkflowRunner.inspect(address, graph, kind))
+  const localSource = (id: string) => sources.list().sources.find((source) => source.id === id)
+  const allowGenerationMedia = (source: string) => {
+    if (allowedMediaUrl(source)) return true
+    try {
+      const url = new URL(source)
+      return !url.username && !url.password && sources.list().sources.some((entry) => {
+        const endpoint = new URL(`${entry.address}/view`)
+        return url.origin === endpoint.origin && url.pathname === endpoint.pathname && ['output', 'temp'].includes(url.searchParams.get('type') ?? '')
+      })
+    } catch { return false }
+  }
+  const previews: PreviewService = new PreviewService((options) => {
+    const sessionOptions = { ...options, diagnose: (entry: Parameters<TaskDiagnostics['append']>[0]) => diagnostics.append(entry) }
+    return options.initial.provider === 'comfyui' ? new ComfyPreviewSession(sessionOptions) : new RunningHubPreviewSession(sessionOptions)
+  }, (event) => {
     emitPreview(generation?.onPreview(event) ?? event)
     if (event.type === 'state' && event.state.connection === 'completed' &&
-      (event.state.remoteStatus === 'success' || event.state.remoteStatus === 'failed' || event.state.remoteStatus === 'cancelled') && !settledAccounts.has(event.state.id)) {
+      (event.state.remoteStatus === 'success' || event.state.remoteStatus === 'failed' || event.state.remoteStatus === 'cancelled') && event.state.provider !== 'comfyui' && !settledAccounts.has(event.state.id)) {
       settledAccounts.add(event.state.id)
       // 仅同步原账号；同步失败不改变任务终态，不重提任务。
       void accounts.refresh(event.state.accountId).then(() => {
@@ -183,7 +206,7 @@ export async function initializeWorkbench(): Promise<void> {
   })
   const accounts = new AccountService(new SqliteAccountRepository(database.connection), new SafeStorageCredentialVault(), new RunningHubAccountGateway(), randomUUID)
   const workflows = new WorkflowService(new SqliteWorkflowRepository(database.connection), new RunningHubWorkflowGateway(), randomUUID,
-    '', JSON.stringify(h3AcceleratedTemplate, null, 2), { 'qwen3-voice-design': JSON.stringify(qwen3VoiceTemplate, null, 2), 'voxcpm2-voice-clone': JSON.stringify(voxcpm2VoiceTemplate, null, 2) })
+    '', JSON.stringify(h3AcceleratedTemplate, null, 2), { 'qwen3-voice-design': JSON.stringify(qwen3VoiceTemplate, null, 2), 'voxcpm2-voice-clone': JSON.stringify(voxcpm2VoiceTemplate, null, 2) }, sources)
   const assembly = new AssemblyService(new SqliteAssemblyRepository(database.connection), { get: (id) => library.get(id) }, randomUUID)
   const library: LibraryService = new LibraryService(new SqliteAssetRepository(database.connection),
     new ManagedReferenceFiles(join(mediaDirectory, 'assets')), randomUUID, (id) => {
@@ -204,13 +227,19 @@ export async function initializeWorkbench(): Promise<void> {
         baseUrl: node.accountSnapshot.baseUrl, model: node.accountSnapshot.model, submittedAt: node.submittedAt ?? node.createdAt }).id
     }
   }, new SafeStorageCredentialVault(), new ProtocolImageGateway([new OpenAiImageProtocol()], new LocalImageOutputStore(join(mediaDirectory, 'assets'))), randomUUID)
-  const finalVideoFiles = new ManagedFinalVideoFiles(join(mediaDirectory, 'assets'), allowedMediaUrl)
+  const finalVideoFiles = new ManagedFinalVideoFiles(join(mediaDirectory, 'assets'), allowGenerationMedia)
   const mediaEngine = new LocalMediaEngine(join(app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources'), 'media-engine', 'win32-x64'),
     new SqliteContinuityEngineRepository(database.connection))
   const continuityFiles = new FfmpegContinuityFiles(join(mediaDirectory, 'assets'), mediaEngine)
   const assemblyExport = new AssemblyExportService(assembly, { get: (id) => library.get(id), path: (id) => library.media(id).path })
   const references = new ReferenceService(new SqliteReferenceRepository(database.connection), library, randomUUID)
   const samplingFiles = new ManagedSamplingFiles(join(mediaDirectory, 'sampling'))
+  const rhGateway = new RunningHubGenerationGateway()
+  const comfyGateway = new ComfyGenerationGateway((id) => {
+    const selected = sources.findWorkflow(id)
+    if (!selected) throw new Error('本地工作流不存在')
+    return { ...selected.source, workflow: selected.workflow.workflow, enabled: selected.source.enabled && selected.workflow.enabled }
+  })
   generation = new GenerationService(new SqliteGenerationRepository(database.connection, samplingFiles), {
     routes() {
       return accounts.list().accounts.filter((account) => account.enabled).flatMap((account) => {
@@ -234,19 +263,35 @@ export async function initializeWorkbench(): Promise<void> {
         return { reference, path: library.media(reference.assetId).path }
       })
     },
+    resolveTarget: (resolution, target, revision) => {
+      if (revision !== undefined && sources.list().revision !== revision) throw new Error('路由设置在确认后发生变化，请重新确认')
+      return sources.resolve(resolution, target)
+    },
     workflow(id) {
+      const selected = sources.findWorkflow(id)
+      const local = selected?.source
+      if (local) {
+        if (!local.enabled || !selected?.workflow.enabled || selected.workflow.kind !== 'video') throw new Error('请选择启用的 ComfyUI 视频工作流')
+        return { accountId: local.id, workflowId: id, provider: 'comfyui' as const, sourceName: `${local.name} · ${selected.workflow.name}` }
+      }
       const saved = workflows.get(id)
       if (!saved.accountId) throw new Error('工作流尚未分配账号')
       const workflow = workflows.forAccount(id, saved.accountId)
       return { accountId: saved.accountId, workflowId: workflow.workflowId }
     },
-    credential: (id) => accounts.credential(id),
+    credential: (id) => localSource(id) ? '' : accounts.credential(id),
     async capacity(id) {
+      // ComfyUI 自己维护执行队列；本地来源不套用 RH 账号并发额度。
+      if (localSource(id)) return { limit: Number.MAX_SAFE_INTEGER, occupied: 0 }
       const account = (await accounts.refresh(id)).accounts.find((item) => item.id === id)
       if (!account?.enabled || account.queueStatus !== 'ready' || !account.queue) throw new Error('无法确认原账号队列容量，未提交生成')
       return { limit: account.queue.concurrentLimit, occupied: account.queue.totalCurrentTasks, externalReservations: workflowRuns?.reservationCount(id) ?? 0 }
     }
-  }, new RunningHubGenerationGateway(), previews, emitPreview, {
+  }, {
+    queryConsumption: (taskId, credential) => rhGateway.queryConsumption(taskId, credential),
+    inspectPreview: (id, credential) => sources.findWorkflow(id) ? comfyGateway.inspectPreview(id) : rhGateway.inspectPreview(id, credential),
+    prepare: (id, credential, draft) => sources.findWorkflow(id) ? comfyGateway.prepare(id, credential, draft) : rhGateway.prepare(id, credential, draft)
+  }, previews, emitPreview, {
     async prepareContinuity(input, signal, authorize) {
       const requireSource = async () => {
         signal.throwIfAborted()
@@ -272,10 +317,11 @@ export async function initializeWorkbench(): Promise<void> {
     }
   })
   const workflowRunner = new RunningHubWorkflowRunner()
-  const workflowFiles = new WorkflowOutputFiles(join(mediaDirectory, 'production-staging', 'workflows'), allowedMediaUrl)
+  const workflowFiles = new WorkflowOutputFiles(join(mediaDirectory, 'production-staging', 'workflows'), allowGenerationMedia)
   workflowRuns = new WorkflowRunService(new SqliteWorkflowRunRepository(database.connection), {
     workflow: (id) => workflows.get(id),
     async assertCapacity(accountId, currentRunId) {
+      if (localSource(accountId)) return
       const account = (await accounts.refresh(accountId)).accounts.find((item) => item.id === accountId)
       if (!account?.enabled || account.queueStatus !== 'ready' || !account.queue) throw new Error('账号不可用或无法确认空闲容量，未提交生成')
       const local = (generation?.reservationCount(accountId) ?? 0) + (workflowRuns?.reservationCount(accountId, currentRunId) ?? 0)
@@ -284,7 +330,7 @@ export async function initializeWorkbench(): Promise<void> {
       if (occupied >= account.queue.concurrentLimit) throw new Error(`账号并发已满：平台任务 ${account.queue.totalCurrentTasks}，本地占位 ${local}，并发上限 ${account.queue.concurrentLimit}；请刷新任务核对终态`)
     },
     prepare(workflow, values) {
-      return workflowRunner.prepare(workflow, accounts.credential(workflow.accountId!), values, (id, kind, expectedUpdatedAt) => {
+      const media = (id: string, kind: 'image' | 'audio', expectedUpdatedAt: string) => {
         const original = library.get(id)
         const assertCurrent = () => {
           const current = library.get(id)
@@ -292,9 +338,15 @@ export async function initializeWorkbench(): Promise<void> {
         }
         assertCurrent()
         return { path: library.media(id).path, assertCurrent }
-      })
+      }
+      if (workflow.provider === 'comfyui') {
+        const local = sources.findWorkflow(workflow.id)
+        if (!local || !local.source.enabled || !local.workflow.enabled) throw new Error('本地工作流已停用或不存在')
+        return comfyWorkflowRunner.prepare(workflow, local.source.address, local.workflow.workflow, values, media)
+      }
+      return workflowRunner.prepare(workflow, accounts.credential(workflow.accountId!), values, media)
     },
-    query: (run) => workflowRunner.query(run.taskId, accounts.credential(run.accountId)),
+    query: (run) => run.provider === 'comfyui' ? comfyWorkflowRunner.query(run) : workflowRunner.query(run.taskId, accounts.credential(run.accountId)),
     async archive(run, output, index) {
       const path = await workflowFiles.download(run.id, index, output)
       try {
@@ -429,10 +481,13 @@ export async function initializeWorkbench(): Promise<void> {
       if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send('workbench:windows-changed')
     }
   })
-  registerWorkbench(workspace, previews, allowedMediaUrl, accounts, workflows, references, library, mcp, extensions, production, generation,
-    (media) => samplingFiles.forDownload(media), (id) => diagnostics.read(id), { library: personalLibrary, settings, pages: extensionPages, assembly, assemblyExport,
+  registerWorkbench(workspace, previews, allowGenerationMedia, accounts, workflows, references, library, mcp, extensions, production, generation,
+    (media) => samplingFiles.forDownload(media), (task) => diagnostics.read(task.id, task.provider === 'comfyui' ? {
+      event: 'summary', taskId: task.taskId, historicalEventsAvailable: false,
+      remoteStatus: task.remoteStatus, step: task.step, total: task.total, samplingAvailable: task.sampling !== null
+    } : undefined), { library: personalLibrary, settings, pages: extensionPages, assembly, assemblyExport,
       assemblyRenderer: (ffmpeg, ffprobe) => new FfmpegAssemblyRenderer(ffmpeg, ffprobe, assemblyFontDirectory),
-      runs: workflowRuns, voices, mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows, closePrompts })
+      sources, runs: workflowRuns, voices, mediaEngine, migration, skills, images: imageGeneration, assemblyWindows, workbenchWindows, closePrompts })
   const workflowMonitor = new WorkflowRunMonitor(workflowRuns)
   workflowMonitor.start()
   imageGeneration.restore()

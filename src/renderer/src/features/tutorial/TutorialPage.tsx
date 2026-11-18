@@ -18,7 +18,11 @@ const captions = [
   '公共音色库：试听、管理并引用公共参考音频',
   '声音克隆：参考音频原文、待合成台词与生成结果',
   '独立 Skill：按需安装或导出内置技能',
-  '排片剪辑：时间轴预览、字幕与导出文件定位'
+  '排片剪辑：时间轴预览、字幕与导出文件定位',
+  'ComfyUI 工作流菜单：选择导出（API）',
+  '工作流列表右上角：进入生成来源与路由',
+  'ComfyUI 来源：填写地址、导入工作流、测试连接并保存',
+  '视频生成的片段参数：选择生成来源'
 ]
 type Destination = 'accounts' | 'workflows' | 'video' | 'mcp' | 'skills' | 'assembly' | 'image-generation' | 'voices'
 
@@ -36,14 +40,14 @@ export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) =
     <h1>使用教程</h1><p className="muted">第一次使用，从准备工具开始。先配置账号池，再配置工作流，最后进入视频生产。</p>
     <nav className="tutorial-toc" aria-label="教程目录">
       <a href="#tutorial-ready">使用前提</a><a href="#tutorial-accounts">01 账号池</a><a href="#tutorial-workflows">02 工作流</a>
-      <a href="#tutorial-video">03 视频生成</a><a href="#tutorial-voice">声音克隆与音色库</a><a href="#tutorial-agent">推荐创作流程</a><a href="#tutorial-edit">排片与剪映</a>
+      <a href="#tutorial-comfyui">添加 ComfyUI</a><a href="#tutorial-video">03 视频生成</a><a href="#tutorial-voice">声音克隆与音色库</a><a href="#tutorial-agent">推荐创作流程</a><a href="#tutorial-edit">排片与剪映</a>
     </nav>
     <section id="tutorial-ready" className="tutorial-section"><h2>使用前提 · 准备好这些工具</h2>
-      <ul><li><strong>RunningHub 会员：</strong>视频生成需要支持消费级 API Key 调用的会员权益和可用积分。购买前请确认对应套餐支持该能力。</li>
+      <ul><li><strong>RunningHub 会员：</strong>使用 RunningHub 生成时，需要支持消费级 API Key 调用的会员权益和可用积分。</li>
         <li><strong>素材生成：</strong>准备支持 OpenAI 协议、且与软件所用图像接口兼容的生成站及其配置，用于制作人物、场景和分镜参考图。</li>
         <li><strong>MCP 与 Skill：</strong>准备支持 MCP 和 Skill 的 Agent 智能体，例如 Codex。可在左侧 Skill 页面安装或导出内置技能，其他智能体按其自身安装方式接入。</li>
         <li><strong>账号池：</strong>集成 RunningHub 消费级 API Key。多个独立账号可汇总可用并发；同一账号添加多个 Key 不会增加该账号的平台并发额度。</li>
-        <li><strong>工作流：</strong>仅使用软件内置的兼容工作流，下载后导入 RunningHub，再将线上 workflowId 配置回软件。</li></ul>
+        <li><strong>工作流：</strong>可配置 RunningHub 线上工作流，也可导入 ComfyUI 的 H3 全能参考 API 工作流。</li></ul>
       <p><a href="https://www.runninghub.cn/vip-rights/2" target="_blank" rel="noreferrer">打开 RunningHub 会员权益页面</a></p>
       {figures([1])}
     </section>
@@ -62,6 +66,15 @@ export function TutorialPage({ onNavigate }: { onNavigate: (view: Destination) =
       <p>如果工作流分享权限允许其他账号调用，可复用同一个线上工作流，无需重复上传；仍需在软件中为每个使用它的账号配置工作流归属，并确认该账号实际有权访问。</p>
       <div className="button-row"><Button onClick={() => onNavigate('workflows')}>前往工作流</Button></div>{figures([5, 6])}
       <p>当前工作流支持视频与声音。声音模板提供 Qwen3 音色设计和 VoxCPM2 声音克隆；图片工作流模式已停用，图片生成请使用独立的“素材生成”。</p>
+    </section>
+    <section id="tutorial-comfyui" className="tutorial-section"><h2>添加 ComfyUI</h2>
+      <ol>
+        <li>在 ComfyUI 中导入工作流，打开工作流标签菜单，选择「导出（API）」并保存 JSON。{figures([15])}</li>
+        <li>在工作台进入「工作流」，点击右上角「生成来源与路由」。{figures([16])}</li>
+        <li>点击「添加连接」，填写 ComfyUI 服务地址，导入刚才导出的 API 工作流。点击「测试连接」，通过后点击「保存设置」。自动路由规则为选填。{figures([17])}</li>
+        <li>回到「视频生成」，在「片段参数 → 生成来源」选择 ComfyUI、RunningHub 或自动路由。自动路由命中繁忙的 ComfyUI 时，可以选择加入队列，或仅将本次任务提交到 RunningHub。{figures([18])}</li>
+      </ol>
+      <div className="button-row"><Button onClick={() => onNavigate('workflows')}>前往工作流</Button></div>
     </section>
     <section id="tutorial-video" className="tutorial-section"><h2>03 · 视频生成（配置完成后开始生产）</h2>
       <ol><li>先准备人物、场景和分镜图等参考素材，再创建项目与视频草稿。</li><li>使用内置 H3 视频提示词 Skill，让支持 Skill 的智能体输出 H3 六段式全能参考提示词，并核对其中图片、视频和音频引用与草稿中真实素材一致。</li>

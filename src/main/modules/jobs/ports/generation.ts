@@ -52,7 +52,8 @@ export interface GenerationContext {
   routes?(): { configId: string; accountId: string; workflowId: string }[]
   draft(projectId: string, draftId: string, expectedRevision: number): Promise<VideoDraft>
   references(draftId: string, projectId: string): GenerationMedia[]
-  workflow(id: string): { accountId: string; workflowId: string }
+  workflow(id: string): { accountId: string; workflowId: string; provider?: 'runninghub' | 'comfyui'; sourceName?: string }
+  resolveTarget?(resolution: string, target?: import('../../../../shared/contracts/generation-sources').GenerationTarget, revision?: number): import('../../../../shared/contracts/generation-sources').GenerationTarget
   credential(accountId: string): string
   capacity(accountId: string): Promise<{ limit: number; occupied: number; externalReservations?: number }>
 }
